@@ -1,0 +1,112 @@
+<Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003" ToolsVersion="4.0">
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <SchemaVersion>2.0</SchemaVersion>
+    <ProjectGuid>45f23774-c5ff-4a05-8343-b74806015a3d</ProjectGuid>
+    <ProjectHome>.</ProjectHome>
+    <StartupFile>camera_connection.py</StartupFile>
+    <SearchPath>
+    </SearchPath>
+    <WorkingDirectory>.</WorkingDirectory>
+    <OutputPath>.</OutputPath>
+    <Name>MortarMill</Name>
+    <RootNamespace>MortarMill</RootNamespace>
+    <InterpreterId>MSBuild|env|$(MSBuildProjectFullPath)</InterpreterId>
+    <TestFramework>unittest</TestFramework>
+    <UnitTestPattern>test*.py</UnitTestPattern>
+    <UnitTestRootDirectory>.</UnitTestRootDirectory>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)' == 'Release' ">
+    <DebugSymbols>true</DebugSymbols>
+    <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="brick.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="camera.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="camera_connection.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="common\preprocessing.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="common\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="FCM.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="fft.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="histogram_tmp.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="hsv.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="kmeans.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="main.py" />
+    <Compile Include="paper_method.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="path_finder.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="svm.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="temporary.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="trainer\dataset.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="trainer\classifier.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="trainer\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="unittests\test_brick.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="unittests\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <Folder Include="common\" />
+    <Folder Include="trainer\" />
+    <Folder Include="unittests\" />
+  </ItemGroup>
+  <ItemGroup>
+    <Interpreter Include="env\">
+      <Id>env</Id>
+      <Version>3.7</Version>
+      <Description>env (Python 3.7 (64-bit))</Description>
+      <InterpreterPath>Scripts\python.exe</InterpreterPath>
+      <WindowsInterpreterPath>Scripts\pythonw.exe</WindowsInterpreterPath>
+      <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
+      <Architecture>X64</Architecture>
+    </Interpreter>
+  </ItemGroup>
+  <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
+  <!-- Uncomment the CoreCompile target to enable the Build command in
+       Visual Studio and specify your pre- and post-build commands in
+       the BeforeBuild and AfterBuild targets below. -->
+  <!--<Target Name="CoreCompile" />-->
+  <Target Name="BeforeBuild">
+  </Target>
+  <Target Name="AfterBuild">
+  </Target>
+</Project>
