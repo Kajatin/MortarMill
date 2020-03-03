@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>45f23774-c5ff-4a05-8343-b74806015a3d</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>camera_connection.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -31,7 +31,7 @@
     <Compile Include="camera.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="camera_connection.py">
+    <Compile Include="junk\camera_connection.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="common\preprocessing.py">
@@ -40,32 +40,26 @@
     <Compile Include="common\__init__.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="FCM.py">
+    <Compile Include="common\FCM.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="fft.py">
+    <Compile Include="junk\fft.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="histogram_tmp.py">
+    <Compile Include="junk\histogram_tmp.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="hsv.py">
+    <Compile Include="junk\hsv.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="kmeans.py">
+    <Compile Include="junk\kmeans.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="main.py" />
-    <Compile Include="paper_method.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="path_finder.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="svm.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="temporary.py">
+    <Compile Include="junk\temporary.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="trainer\dataset.py">
@@ -86,6 +80,10 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="common\" />
+    <Folder Include="junk\" />
+    <Folder Include="samples\" />
+    <Folder Include="samples\net\" />
+    <Folder Include="samples\RAW\" />
     <Folder Include="trainer\" />
     <Folder Include="unittests\" />
   </ItemGroup>
@@ -99,6 +97,32 @@
       <PathEnvironmentVariable>PYTHONPATH</PathEnvironmentVariable>
       <Architecture>X64</Architecture>
     </Interpreter>
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="samples\net\brick_1.jpg" />
+    <Content Include="samples\net\brick_10.jpg" />
+    <Content Include="samples\net\brick_11.jpg" />
+    <Content Include="samples\net\brick_12.PNG" />
+    <Content Include="samples\net\brick_2.jpg" />
+    <Content Include="samples\net\brick_3.jpg" />
+    <Content Include="samples\net\brick_4.jpg" />
+    <Content Include="samples\net\brick_5.jpg" />
+    <Content Include="samples\net\brick_6.jpg" />
+    <Content Include="samples\net\brick_7.jpg" />
+    <Content Include="samples\net\brick_8.jpg" />
+    <Content Include="samples\net\brick_9.jpg" />
+    <Content Include="samples\RAW\brick_1.jpg" />
+    <Content Include="samples\RAW\brick_2.jpg" />
+    <Content Include="samples\RAW\brick_3.jpg" />
+    <Content Include="samples\RAW\brick_4.jpg" />
+    <Content Include="samples\RAW\brick_5.jpg" />
+    <Content Include="samples\RAW\brick_6.jpg" />
+    <Content Include="samples\RAW\brick_7.jpg" />
+    <Content Include="samples\RAW\brick_8.jpg" />
+    <Content Include="samples\RAW\brick_zoom_3.jpg" />
+    <Content Include="samples\RAW\brick_zoom_6.jpg" />
+    <Content Include="samples\RAW\brick_zoom_8.jpg" />
+    <Content Include="samples\test_image.png" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

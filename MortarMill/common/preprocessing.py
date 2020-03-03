@@ -1,7 +1,7 @@
 import cv2 as cv
 import numpy as np
 
-from FCM import FCM
+from common.FCM import FCM
 
 def generateGaborFilters(lambd_iter,theta_iter,ksize,sigma):
         filters = []
@@ -144,7 +144,5 @@ def assignLabelsUnsupervised(image, features, features_t=None, ratio=0.05):
     fcm_labels = cv.normalize(fcm_labels, None, 0, 255, cv.NORM_MINMAX)
     fcm_labels = fcm_labels.astype(np.uint8)
     cv.imshow('fcm_labels_orig',fcm_labels)
-
-    cv.imshow('original',image)
 
     return training

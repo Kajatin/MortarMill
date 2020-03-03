@@ -5,14 +5,14 @@ import numpy as np
 from sklearn import svm
 import pickle
 
-import dataset
+import trainer.dataset
 
 
 def trainClassifier(path):
     # load the sample images from the given directory
-    data = dataset.loadDatasetPath(path)
+    data = trainer.dataset.loadDatasetPath(path)
     # create the training data from the given samples
-    X, y = dataset.createTrainingData(data)
+    X, y = trainer.dataset.createTrainingData(data)
     
     # train an SVM
     clf = svm.SVC()
@@ -50,12 +50,14 @@ if __name__ == '__main__':
         saveClassifier(clf, 'svm.pickle')
 
     # test the classifier on an image
-    image = dataset.getRandomTestImage()
+    image = trainer.dataset.getRandomTestImage()
     predictions = clf.predict(image.reshape(-1,3))
 
     predictions = predictions.reshape(image.shape[:2])
     predictions = cv.normalize(predictions, None, 0, 255, cv.NORM_MINMAX)
     predictions = predictions.astype(np.uint8)
     cv.imshow('predictions',predictions)
+
+    cv.imshow('original',image)
 
     key = cv.waitKey(0)
