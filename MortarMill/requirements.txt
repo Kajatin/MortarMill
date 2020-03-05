@@ -1,0 +1,8 @@
+joblib==0.14.1
+numpy==1.18.1
+opencv-python==4.2.0.32
+pip==20.0.2
+pyrealsense2==2.32.1.1299
+scikit-learn==0.22.1
+scipy==1.4.1
+setuptools==45.2.0

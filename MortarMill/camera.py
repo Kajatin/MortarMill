@@ -8,7 +8,7 @@ class Camera():
     def __init__(self, config=None):
         self.pipeline = rs.pipeline()
 
-        if config:
+        if config is not None:
             self.config = config
         else:
             self.config = rs.config()

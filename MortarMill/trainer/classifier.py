@@ -1,18 +1,21 @@
 import os
+import pickle
 
 import cv2 as cv
 import numpy as np
 from sklearn import svm
-import pickle
+from sklearn.preprocessing import MinMaxScaler
 
 import trainer.dataset
 
 
-def trainClassifier(path):
+def trainClassifier(path, unsupervised=True):
     # load the sample images from the given directory
     data = trainer.dataset.loadDatasetPath(path)
     # create the training data from the given samples
-    X, y = trainer.dataset.createTrainingData(data)
+    X, y = trainer.dataset.createTrainingData(data, unsupervised)
+
+    print('Training data size: {}'.format(X.shape[0]))
     
     # train an SVM
     clf = svm.SVC()
@@ -40,7 +43,7 @@ def loadClassifier(file, path='models/'):
 
 
 if __name__ == '__main__':
-    #load the SVM classifier if it exists
+    # load the SVM classifier if it exists
     clf = loadClassifier('svm.pickle')
 
     if clf is None:

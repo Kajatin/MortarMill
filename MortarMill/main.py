@@ -4,6 +4,9 @@ import pyrealsense2 as rs
 
 from path_finder import PathFinder
 from camera import Camera
+import trainer.classifier
+import trainer.dataset
+import common.preprocessing
 
 
 if __name__ == '__main__':
@@ -21,6 +24,42 @@ if __name__ == '__main__':
                 break
 
     else:
+        # load an existing classifier
+        clf = trainer.classifier.loadClassifier('svm_test.pickle')
+
+        if clf is None:
+            # train a SVM classifier
+            clf = trainer.classifier.trainClassifier('samples/train/', False)
+
+            # save it for reuse later
+            trainer.classifier.saveClassifier(clf, 'svm_test.pickle')
+
+        # test the classifier on an image trained on RGB
+        image = trainer.dataset.getRandomTestImage()
+        predictions = clf.predict(image.reshape(-1,3))
+        
+        # test the classifier on an image trained on CF and TF
+        #image = trainer.dataset.getRandomTestImage()
+        #CF, TF = common.preprocessing.calculateColorAndTextureFeatures(image.copy())
+        #features = np.hstack((CF.reshape(-1,3),TF.reshape(-1,1)))
+        #predictions = clf.predict(features)
+
+        predictions = predictions.reshape(image.shape[:2])
+        predictions = cv.normalize(predictions, None, 0, 255, cv.NORM_MINMAX)
+        predictions = predictions.astype(np.uint8)
+        cv.imshow('predictions',predictions)
+
+        cv.imshow('original',image)
+
+        key = cv.waitKey(0)
+
+        exit(0)
+
+
+
+
+
+
         path_finder = PathFinder()
     
         i = 3
