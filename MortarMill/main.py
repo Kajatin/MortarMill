@@ -3,7 +3,7 @@ import numpy as np
 import pyrealsense2 as rs
 
 from path_finder import PathFinder
-from camera import Camera
+from device import Device
 import trainer.classifier
 import trainer.dataset
 import common.preprocessing
@@ -12,7 +12,7 @@ import common.preprocessing
 if __name__ == '__main__':
     # determine if any device is connected or not
     if rs.context().devices.size() > 0:
-        camera = Camera()
+        camera = Device()
         camera.startStreaming()
 
         while 1:

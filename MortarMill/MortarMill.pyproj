@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>45f23774-c5ff-4a05-8343-b74806015a3d</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>junk\temporary.py</StartupFile>
+    <StartupFile>vision.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -28,7 +28,7 @@
     <Compile Include="brick.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="camera.py">
+    <Compile Include="device.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="junk\camera_connection.py">
@@ -75,6 +75,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="unittests\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="vision.py">
       <SubType>Code</SubType>
     </Compile>
   </ItemGroup>
@@ -124,6 +127,7 @@
     <Content Include="samples\RAW\brick_zoom_6.jpg" />
     <Content Include="samples\RAW\brick_zoom_8.jpg" />
     <Content Include="samples\test_image.png" />
+    <Content Include="vision_codes_rs.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
   <!-- Uncomment the CoreCompile target to enable the Build command in

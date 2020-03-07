@@ -1,0 +1,42 @@
+rs.stream
+0 stream.any
+1 stream.depth
+2 stream.color
+3 stream.infrared
+4 stream.fisheye
+5 stream.gyro
+6 stream.accel
+7 stream.gpio
+8 stream.pose
+9 stream.confidence
+
+rs.format
+0 format.any
+1 format.z16
+2 format.disparity16
+3 format.xyz32f
+4 format.yuyv
+5 format.rgb8
+6 format.bgr8
+7 format.rgba8
+8 format.bgra8
+9 format.y8
+10 format.y16
+11 format.raw10
+12 format.raw16
+13 format.raw8
+14 format.uyvy
+15 format.motion_raw
+16 format.motion_xyz32f
+17 format.gpio_raw
+18 format.six_dof
+19 format.disparity32
+20 format.y10bpack
+21 format.distance
+22 format.mjpeg
+23 format.y8i
+24 format.y12i
+25 format.inzi
+26 format.invi
+27 format.w10
+28 format.z16h
