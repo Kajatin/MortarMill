@@ -1,9 +1,22 @@
+# set up logging
+# modules that use logging need to be imported after the logger setup
+import logging
+import datetime
+
+date = datetime.datetime.now().strftime("%d%m%Y%H%M%S")
+logging.basicConfig(filename=f'logs/{date}.log',
+                    level=logging.DEBUG,
+                    filemode='w',
+                    format='%(asctime)s.%(msecs)05d %(module)s %(levelname)s %(message)s',
+                    datefmt='%Y-%m-%d %H:%M:%S')
+logger = logging.getLogger(__name__)
+
 import cv2 as cv
 import numpy as np
 import pyrealsense2 as rs
 
 from path_finder import PathFinder
-from camera import Camera
+from device import Device
 import trainer.classifier
 import trainer.dataset
 import common.preprocessing
@@ -11,16 +24,28 @@ import common.preprocessing
 
 if __name__ == '__main__':
     # determine if any device is connected or not
-    if rs.context().devices.size() > 0:
-        camera = Camera()
-        camera.startStreaming()
+    devices = rs.context().devices
+    logger.info('Found {} device(s).'.format(devices.size()))
+    
+    if devices.size() > 0:
+        cameras = []
+        # iterate over devices
+        for i, device in enumerate(devices):
+            #camera = Device(device, save=True)
+            #camera = Device(device, load_path='samples/recordings/time_07032020140142_device_943222071836.bag')
+            camera = Device(device)
+        
+            camera.startStreaming()
+            cameras.append(camera)
 
         while 1:
-            frames = camera.getFrames()
-            key = camera.showFrames()
+            for camera in cameras:
+                frames = camera.getFrames()
+                key = camera.showFrames()
 
             if key == 27:
-                camera.stopStreaming()
+                for camera in cameras:
+                    camera.stopStreaming()
                 break
 
     else:
