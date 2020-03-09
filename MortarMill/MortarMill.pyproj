@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>45f23774-c5ff-4a05-8343-b74806015a3d</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>vision.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -77,16 +77,10 @@
     <Compile Include="unittests\__init__.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="vision.py">
-      <SubType>Code</SubType>
-    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="common\" />
     <Folder Include="junk\" />
-    <Folder Include="samples\" />
-    <Folder Include="samples\net\" />
-    <Folder Include="samples\RAW\" />
     <Folder Include="trainer\" />
     <Folder Include="unittests\" />
   </ItemGroup>
@@ -103,30 +97,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="requirements.txt" />
-    <Content Include="samples\net\brick_1.jpg" />
-    <Content Include="samples\net\brick_10.jpg" />
-    <Content Include="samples\net\brick_11.jpg" />
-    <Content Include="samples\net\brick_12.PNG" />
-    <Content Include="samples\net\brick_2.jpg" />
-    <Content Include="samples\net\brick_3.jpg" />
-    <Content Include="samples\net\brick_4.jpg" />
-    <Content Include="samples\net\brick_5.jpg" />
-    <Content Include="samples\net\brick_6.jpg" />
-    <Content Include="samples\net\brick_7.jpg" />
-    <Content Include="samples\net\brick_8.jpg" />
-    <Content Include="samples\net\brick_9.jpg" />
-    <Content Include="samples\RAW\brick_1.jpg" />
-    <Content Include="samples\RAW\brick_2.jpg" />
-    <Content Include="samples\RAW\brick_3.jpg" />
-    <Content Include="samples\RAW\brick_4.jpg" />
-    <Content Include="samples\RAW\brick_5.jpg" />
-    <Content Include="samples\RAW\brick_6.jpg" />
-    <Content Include="samples\RAW\brick_7.jpg" />
-    <Content Include="samples\RAW\brick_8.jpg" />
-    <Content Include="samples\RAW\brick_zoom_3.jpg" />
-    <Content Include="samples\RAW\brick_zoom_6.jpg" />
-    <Content Include="samples\RAW\brick_zoom_8.jpg" />
-    <Content Include="samples\test_image.png" />
     <Content Include="vision_codes_rs.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />
