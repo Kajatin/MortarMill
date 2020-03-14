@@ -28,7 +28,7 @@
     <Compile Include="brick.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="device.py">
+    <Compile Include="vision\device.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="junk\camera_connection.py">
@@ -77,12 +77,19 @@
     <Compile Include="unittests\__init__.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="vision\calibration.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="vision\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="common\" />
     <Folder Include="junk\" />
     <Folder Include="trainer\" />
     <Folder Include="unittests\" />
+    <Folder Include="vision\" />
   </ItemGroup>
   <ItemGroup>
     <Interpreter Include="env\">
