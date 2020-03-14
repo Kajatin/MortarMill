@@ -149,9 +149,9 @@ class PathFinder(metaclass=Singleton):
             start = end
             end = end + col_width
         
-        cv.imshow('original',image)
-        cv.imshow('im_row',image_row)    
-        cv.imshow('im_col',image_col)
+        cv.imshow('Histogram based segmentation',np.vstack([image, image_row, image_col]))
+        #cv.imshow('im_row',image_row)    
+        #cv.imshow('im_col',image_col)
     
         return cv.waitKey(0)
 
