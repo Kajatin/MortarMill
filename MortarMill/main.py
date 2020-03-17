@@ -16,13 +16,48 @@ import numpy as np
 import pyrealsense2 as rs
 
 from path_finder import PathFinder
-from device import Device
+from vision.device import Device
 import trainer.classifier
 import trainer.dataset
 import common.preprocessing
 
+from vision import calibration
+
 
 if __name__ == '__main__':
+
+    # load the calibration parameters for the given device
+    #calib_matrices = calibration.loadCameraCalibrationParams('943222071836')
+    
+    # calibrate the camera
+    calib_matrices = calibration.calibrateCamera(save=True)
+    
+
+
+
+    #import pickle
+    #mtx, dist, newcameramtx, roi, img = pickle.load(open("calibration.pickle","rb"))
+
+    ## undistort image
+    #dst = cv.undistort(img, mtx, dist, None, newcameramtx)
+    
+    ## crop the image
+    #x, y, w, h = roi
+    #dst = dst[y:y+h, x:x+w]
+
+    #cv.imshow('corrected_', dst)
+
+    #cv.waitKey(0)
+
+
+
+    exit()
+
+
+
+
+
+
     # determine if any device is connected or not
     devices = rs.context().devices
     logger.info('Found {} device(s).'.format(devices.size()))
@@ -31,9 +66,9 @@ if __name__ == '__main__':
         cameras = []
         # iterate over devices
         for i, device in enumerate(devices):
-            #camera = Device(device, save=True)
-            #camera = Device(device, load_path='samples/recordings/time_07032020140142_device_943222071836.bag')
-            camera = Device(device)
+            #camera = Device(device, save=True, nir=True, align=False)
+            camera = Device(device, nir=True, align=False, load_path='samples/recordings/time_11032020132524_device_943222071836_nir.bag')
+            #camera = Device(device, nir=True, align=False)
         
             camera.startStreaming()
             cameras.append(camera)
@@ -41,9 +76,9 @@ if __name__ == '__main__':
         while 1:
             for camera in cameras:
                 frames = camera.getFrames()
-                key = camera.showFrames()
+                camera.showFrames()
 
-            if key == 27:
+            if cv.waitKey(1) == 27:
                 for camera in cameras:
                     camera.stopStreaming()
                 break
@@ -87,7 +122,7 @@ if __name__ == '__main__':
 
         path_finder = PathFinder()
     
-        i = 3
+        i = 6
         image = cv.imread(f'samples/RAW/brick_zoom_{i}.jpg')
         image = cv.resize(image, (600, int(image.shape[0] * (600.0/image.shape[1]))))
 

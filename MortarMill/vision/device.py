@@ -5,11 +5,13 @@ import pyrealsense2 as rs
 import numpy as np
 import cv2 as cv
 
+import vision
+
 
 class Device():
     """description of class"""
 
-    def __init__(self, device, save=False, load_path=None, nir=False, align=False):
+    def __init__(self, device, save=False, load_path=None, nir=False, align=False, assisted_depth=True):
         if device is None:
             pass # TODO: handle case where device is None
 
@@ -22,6 +24,15 @@ class Device():
         self.nir = nir
 
         self.logger.info('Setting up device {}.'.format(self.serial))
+
+        # load the camera calibration parameters if they exist
+        self.calib_params = vision.calibration.loadCameraCalibrationParams(self.serial)
+        
+        if self.calib_params is None:
+            self.logger.warning(('Calibration parameters are not available for'
+                            ' device {}.').format(self.serial))
+        else:
+            self.logger.info('Calibration parameters are loaded for device {}'.format(self.serial))
         
         self.align = None
         if align:
@@ -57,17 +68,16 @@ class Device():
 
         self.depth_image = None
         self.color_image = None
+        self.nir_left_image = None
+        self.nir_right_image = None
 
         for sensor in self.device.sensors:
             if sensor.is_depth_sensor():
                 self.depth_scale = sensor.as_depth_sensor().get_depth_scale()
+                if not assisted_depth:
+                    # turn off the IR emitter
+                    sensor.set_option(rs.option.emitter_enabled,0)
                 break
-
-        # TODO: add logging
-        #print('Sensors found for device {} ({}):'.format(device.get_info(rs.camera_info.name),device.get_info(rs.camera_info.serial_number)))
-        #for i, sensor in enumerate(device.sensors):
-        #    print('{}: {}'.format(i,sensor.get_info(rs.camera_info.name)))
-        #print()
 
 
     def __repr__(self):
@@ -109,9 +119,8 @@ class Device():
             self.nir_left_image = np.asanyarray(nir_left_frame.get_data())
             self.nir_right_image = np.asanyarray(nir_right_frame.get_data())
 
-
-        #TODO: change the return of frames here to work with different stream setups
-        return (self.depth_image, self.color_image)
+        return {'colour':self.color_image,'depth':self.depth_image,
+                'nir_left':self.nir_left_image,'nir_right':self.nir_right_image}
 
 
     def showFrames(self):
