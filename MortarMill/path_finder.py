@@ -6,6 +6,7 @@ from scipy.stats import kurtosis
 from sklearn.cluster import KMeans
 
 from common.FCM import FCM
+from vision import imgproc
 
 
 class Singleton(type):
@@ -23,19 +24,6 @@ class PathFinder(metaclass=Singleton):
         pass
 
 
-    def locate_edges(self, rows, threshold):
-        edges = []
-
-        prev = -1
-        for i,row in enumerate(rows):
-            if row - prev > threshold:
-                edges.append(rows[i-1])
-                edges.append(row)
-            prev = row
-
-        return edges
-
-
     def locate_bricks_hsv(self, frame):
         low_H = 0
         low_S = 35
@@ -48,7 +36,7 @@ class PathFinder(metaclass=Singleton):
         frame_original = frame.copy()
         
         # hsv thresholding
-        frame_HSV = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        frame_HSV = cv.cvtColor(frame_original, cv.COLOR_BGR2HSV)
         frame_threshold = cv.inRange(frame_HSV, (low_H, low_S, low_V), (high_H, high_S, high_V))
 
         # morphology
@@ -82,78 +70,61 @@ class PathFinder(metaclass=Singleton):
         #cv.imshow('final mask', final_mask)
     
         mask = final_mask
-        res = cv.bitwise_and(frame,frame,mask=mask)
+        res = cv.bitwise_and(frame_original,frame_original,mask=mask)
     
         # detect bricks
         nb_comp_f, label_f, stats_f, centroids_f = cv.connectedComponentsWithStats(mask, connectivity=8)
         for center in centroids_f[1:]:
-            cv.drawMarker(frame, tuple(np.uint(center)), (255,0,0), cv.MARKER_CROSS,thickness=2)
+            cv.drawMarker(frame_original, tuple(np.uint(center)), (255,0,0), cv.MARKER_CROSS,thickness=2)
 
         for stat in np.uint(stats_f[1:]):
-            cv.rectangle(frame, (stat[0],stat[1]),(stat[0]+stat[2],stat[1]+stat[3]),(0,0,255),2)
+            cv.rectangle(frame_original, (stat[0],stat[1]),(stat[0]+stat[2],stat[1]+stat[3]),(0,0,255),2)
 
         # detect contours
         cnts, hrcy = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-        cv.drawContours(frame, cnts, -1, (0,255,0),2)
+        cv.drawContours(frame_original, cnts, -1, (0,255,0),2)
     
-        #cv.imshow('input',frame)
-        #cv.imshow('bricks',res)
-        cv.imshow('output',np.vstack((frame_original,res,frame)))
-        #cv.imwrite('output.png',np.hstack((res,frame)))
+        #cv.imshow('mask',mask)
+        #cv.imshow('output',np.vstack((frame_original,res,frame)))
+        #cv.imwrite('output.png',np.hstack((res,frame_original)))
 
-        return cv.waitKey(0)
+        return mask
 
 
-    def locate_bricks_hist(self, image, col_width, limit):
-        if col_width < 10:
-            col_width = 10
+    def locate_bricks_hist(self, frame, limit):
+        image_row = frame.copy()
+        image_col = frame.copy()
 
-        image_row = image.copy()
-        image_col = image.copy()
-
-        gray = cv.cvtColor(image,cv.COLOR_BGR2GRAY)
+        gray = cv.cvtColor(frame,cv.COLOR_BGR2GRAY)
 
         # horizontal
-        start = 0
-        end = col_width
-        step = 1
-        for j in range(gray.shape[1]//col_width):
-            rows = []
-            for i in range(0,gray.shape[0],step):
-                kurt = kurtosis(gray[i:i+step,start:end],None)
+        rows = []
+        for i in range(gray.shape[0]):
+            kurt = kurtosis(gray[i,],None)
             
-                if (kurt <= limit):
-                    rows.append(i)
-                    cv.line(image_col,(start,i),(end,i),(0,255,0),1)
-                    #cv.line(image_row,(start,i),(end,i),(0,255,0),1)
+            if kurt <= limit:
+                rows.append(i)
+                cv.line(image_col,(0,i),(gray.shape[1],i),(0,255,0),1)
 
-            edges = self.locate_edges(rows,10)
-            for edge in edges:
-                cv.line(image_row,(start,edge),(end,edge),(0,0,255),2)
+        edges = []
+        threshold = 10
+        prev = -1
+        for i,row in enumerate(rows):
+            if row - prev > threshold:
+                edges.append(rows[i-1])
+                edges.append(row)
+            prev = row
 
-            start = end
-            end = end + col_width
+        for edge in edges:
+            cv.line(image_row,(0,edge),(gray.shape[1],edge),(0,0,255),2)
 
+        mask = np.ones(frame.shape[:2], np.uint8) * 255
+        mask[rows,] = 0
 
-        # vertical
-        start = 0
-        end = col_width
-        step = 10
-        for j in range(gray.shape[0]//col_width):
-            for i in range(0,gray.shape[1],step):
-                kurt = kurtosis(gray[start:end,i:i+step],None)
-            
-                #if (kurt <= limit):
-                    #cv.line(image_col,(i,start),(i,end),(0,255,0),1)
+        #cv.imshow('Histogram based segmentation',np.vstack([frame, image_row, image_col]))
+        #cv.imshow('Mask Histogram',mask)
 
-            start = end
-            end = end + col_width
-        
-        cv.imshow('Histogram based segmentation',np.vstack([image, image_row, image_col]))
-        #cv.imshow('im_row',image_row)    
-        #cv.imshow('im_col',image_col)
-    
-        return cv.waitKey(0)
+        return mask
 
 
     def locate_bricks(self, image_arg, min, max):
@@ -185,20 +156,20 @@ class PathFinder(metaclass=Singleton):
         
         im_selected = mask
 
-        #canny = cv.Canny(im_selected, min, max)
-        #cv.imshow('canny',np.hstack((im_selected, canny)))
+        canny = cv.Canny(im_selected, min, max)
+        cv.imshow('canny',np.hstack((im_selected, canny)))
 
-        ##lines = cv.HoughLinesP(frame, rho, theta, threshold[, lines[, minLineLength[, maxLineGap]]])
-        #lines = cv.HoughLinesP(canny, 1, math.pi/2, 2, None, 30, 1);
+        #lines = cv.HoughLinesP(frame, rho, theta, threshold[, lines[, minLineLength[, maxLineGap]]])
+        lines = cv.HoughLinesP(canny, 1, math.pi/2, 2, None, 10, 3);
 
-        #if lines is not None:
-        #    for line in lines:
-        #        for x1,y1,x2,y2 in line:
-        #            pt1 = (x1,y1)
-        #            pt2 = (x2,y2)
-        #            cv.line(frame, pt1, pt2, (0,0,255), 3)
+        if lines is not None:
+            for line in lines:
+                for x1,y1,x2,y2 in line:
+                    pt1 = (x1,y1)
+                    pt2 = (x2,y2)
+                    cv.line(frame, pt1, pt2, (0,0,255), 3)
 
-        #cv.imshow('hough',frame)
+        cv.imshow('hough',frame)
 
 
         laplace = cv.Laplacian(im_selected, cv.CV_64F, ksize=3)
@@ -242,5 +213,19 @@ class PathFinder(metaclass=Singleton):
         #sobely_erosion = cv.morphologyEx(sobely_bin, cv.MORPH_OPEN, kernel)
         #cv.imshow('sobely_erosion', sobely_erosion)
 
-        return cv.waitKey(0)
-        return cv.waitKey(int(1000/30))
+        return None
+
+
+    def processFrames(self, frames):
+        frame_colour = frames['colour'].copy()
+        frame_depth = frames['depth'].copy()
+
+        mask_hsv = self.locate_bricks_hsv(frame_colour)
+        mask_hist = self.locate_bricks_hist(frame_colour, 0)
+        #mask_plane, mask_ransac = imgproc.separateDepthPlanes(frame_depth)
+
+        final_mask = cv.bitwise_not(mask_hsv, mask_hist)
+        
+        processed_frame = cv.bitwise_and(frame_colour, frame_colour, mask=final_mask)
+        cv.imshow('Final mask', final_mask)
+        cv.imshow('Final masked image', processed_frame)

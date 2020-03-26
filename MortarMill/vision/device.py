@@ -11,7 +11,8 @@ import vision
 class Device():
     """description of class"""
 
-    def __init__(self, device, save=False, load_path=None, nir=False, align=False, assisted_depth=True):
+    def __init__(self, device, save=False, load_path=None, nir=False, align=False,
+                 assisted_depth=True):
         if device is None:
             pass # TODO: handle case where device is None
 
@@ -37,8 +38,8 @@ class Device():
         self.align = None
         if align:
             if not self.nir:
-                self.logger.info('Depth alignment is enabled on device {}.'.format(self.serial))
                 self.align = rs.align(rs.stream(2))
+                self.logger.info('Depth alignment is enabled on device {}.'.format(self.serial))
             else:
                 self.logger.warning('Tried to enable depth alignment on device {} but the depth stream is disabled in favor of NIR.'.format(self.serial))
         else:
@@ -55,7 +56,8 @@ class Device():
             self.config.enable_stream(rs.stream(2), 1920, 1080, rs.format(6), 30)
 
             if self.nir:
-                # if NIR inputs are needed, the depth stream needs to be disabled
+                # see 'vision_codes_rs.txt' for rs.stream() and rs.format() code clarification
+                # if NIR outputs are needed, the depth stream needs to be disabled
                 self.config.disable_stream(rs.stream(1))
                 self.config.enable_stream(rs.stream(3), 1, 1280, 800, rs.format(9), 30)
                 self.config.enable_stream(rs.stream(3), 2, 1280, 800, rs.format(9), 30)
@@ -88,7 +90,72 @@ class Device():
         self.pipeline.start(self.config)
 
 
-    def getFrames(self):
+    def undistort(self):
+        if self.calib_params is not None:
+            if self.color_image is not None:
+                # extract the camera parameters for the colour image
+                camera_matrix = self.calib_params['colour']['intrinsics']
+                distortion_coeffs = self.calib_params['colour']['distortion']
+                new_camera_matrix = self.calib_params['colour']['new_cam_matrix']
+                roi = self.calib_params['colour']['roi']
+
+                # built-in calib params
+                #for sensor in self.device.sensors:
+                #    if sensor.is_color_sensor():
+                #        cp = sensor.get_stream_profiles()[0].as_video_stream_profile().get_intrinsics()
+                #        camera_matrix = np.array([[cp.fx, 0, cp.ppx],
+                #                                 [0, cp.fy, cp.ppy],
+                #                                 [0, 0, 1]])
+                #        distortion_coeffs = np.array([[0,0,0,0,0]])
+                        
+                #        break
+
+
+                # undistort image
+                #self.color_image = cv.undistort(self.color_image, camera_matrix,
+                #                                distortion_coeffs, None,
+                #                                new_camera_matrix)
+                self.color_image = cv.undistort(self.color_image, camera_matrix,
+                                                distortion_coeffs, None)
+    
+                # crop the image
+                x, y, w, h = roi
+                #self.color_image = self.color_image[y:y+h, x:x+w]
+
+            if self.nir_left_image is not None:
+                # extract the camera parameters for the left NIR image
+                camera_matrix = self.calib_params['nir_left']['intrinsics']
+                distortion_coeffs = self.calib_params['nir_left']['distortion']
+                new_camera_matrix = self.calib_params['nir_left']['new_cam_matrix']
+                roi = self.calib_params['nir_left']['roi']
+
+                # undistort image
+                self.nir_left_image = cv.undistort(self.nir_left_image, camera_matrix,
+                                                distortion_coeffs, None,
+                                                new_camera_matrix)
+    
+                # crop the image
+                x, y, w, h = roi
+                #self.nir_left_image = self.nir_left_image[y:y+h, x:x+w]
+
+            if self.nir_right_image is not None:
+                # extract the camera parameters for the right NIR image
+                camera_matrix = self.calib_params['nir_right']['intrinsics']
+                distortion_coeffs = self.calib_params['nir_right']['distortion']
+                new_camera_matrix = self.calib_params['nir_right']['new_cam_matrix']
+                roi = self.calib_params['nir_right']['roi']
+
+                # undistort image
+                self.nir_right_image = cv.undistort(self.nir_right_image, camera_matrix,
+                                                distortion_coeffs, None,
+                                                new_camera_matrix)
+    
+                # crop the image
+                x, y, w, h = roi
+                #self.nir_right_image = self.nir_right_image[y:y+h, x:x+w]
+
+
+    def waitForFrames(self, undistort=False):
         frames = self.pipeline.wait_for_frames()
         # frames.size() -> prints the number of frames returned
 
@@ -100,10 +167,7 @@ class Device():
         nir_left_frame = frames.get_infrared_frame(1)
         nir_right_frame = frames.get_infrared_frame(2)
 
-        #if not depth_frame or not color_frame:
-        #    return None
-
-        # Convert images to numpy arrays
+        # convert images to numpy arrays
         self.color_image = np.asanyarray(color_frame.get_data())
         if not self.nir:
             self.depth_image = np.asanyarray(depth_frame.get_data())
@@ -119,16 +183,21 @@ class Device():
             self.nir_left_image = np.asanyarray(nir_left_frame.get_data())
             self.nir_right_image = np.asanyarray(nir_right_frame.get_data())
 
+        if undistort:
+            self.undistort()
+
+
+    def retrieveFrames(self, wait_for_new=True, undistort=False):
+        if wait_for_new:
+            self.waitForFrames(undistort)
+
         return {'colour':self.color_image,'depth':self.depth_image,
                 'nir_left':self.nir_left_image,'nir_right':self.nir_right_image}
 
 
     def showFrames(self):
-        #if self.depth_image == None or self.color_image == None:
-        #    return 27
-
         if not self.nir:
-            # Apply colormap on depth image (image must be converted to 8-bit per pixel first)
+            # apply colormap on depth image (image must be converted to 8-bit per pixel first)
             alpha = 10#255/np.abs(self.depth_image).max()
             depth_colormap = cv.applyColorMap(cv.convertScaleAbs(self.depth_image, alpha=alpha), cv.COLORMAP_JET)
 

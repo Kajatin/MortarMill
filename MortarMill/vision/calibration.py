@@ -72,12 +72,11 @@ def calibrateCamera(number_of_ref=14, save=True, monitored=True, force=False):
                 logger.warning('Calibration is incomplete.')
                 return None
     else:
-        logger.warning(('The `save` parameter is set to False, so the calibration'
+        logger.warning(('The `save` parameter is set to False; the calibration'
                         ' will not be saved.'))
 
-    # start gathering frames the camera (these are captured in the while loop below)
+    # start gathering frames the camera (these are retrieved in the while loop below)
     camera.startStreaming()
-    #camera.pipeline.get_active_profile().get_stream(rs.stream(2)).as_video_stream_profile().get_intrinsics()
 
     # dictionary to store the calibration results into
     calib_matrices = {}
@@ -104,7 +103,7 @@ def calibrateCamera(number_of_ref=14, save=True, monitored=True, force=False):
         # start gathering calibration images
         while len(objpoints) < number_of_ref:
             # acquire frames from the camera
-            frames = camera.getFrames()
+            frames = camera.retrieveFrames()
 
             # select the frame to work with
             frame_calib = frames[key].copy()
@@ -195,9 +194,10 @@ def calibrateCamera(number_of_ref=14, save=True, monitored=True, force=False):
     return calib_matrices
 
 
-
-
+def main():
+    # calibrate the connected camera
+    calib_matrices = calibration.calibrateCamera(save=True)
 
 
 if __name__ == '__main__':
-    pass
+    main()

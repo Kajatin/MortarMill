@@ -28,6 +28,9 @@
     <Compile Include="brick.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="main_temp.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="vision\device.py">
       <SubType>Code</SubType>
     </Compile>
@@ -78,6 +81,9 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="vision\calibration.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="vision\imgproc.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="vision\__init__.py">
