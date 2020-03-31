@@ -35,7 +35,8 @@ if __name__ == '__main__':
 
         frames = {'colour':image,'depth':np.zeros(image.shape[:2])}
 
-        path_finder.processFrames(frames)
+        path_finder.calibrateHsvThresholds_(image)
+        path_finder(frames)
 
         cv.waitKey(0)
         exit(0)
@@ -58,7 +59,7 @@ if __name__ == '__main__':
         #camera.showFrames()
 
         # process the frames and show the final mask
-        path_finder.processFrames(frames)
+        path_finder(frames)
 
         key = cv.waitKey(1)
         if key == 27:
