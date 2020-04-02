@@ -9,6 +9,7 @@ from sklearn.cluster import KMeans
 
 from common.FCM import FCM
 from vision import imgproc
+from trainer import classifier
 
 
 class Singleton(type):
@@ -26,6 +27,8 @@ class PathFinder(metaclass=Singleton):
         # lower and upper HSV threshold ranges
         self.lowerb = None
         self.upperb = None
+        # Bayes classifier
+        self.bayes_clf = classifier.loadClassifier('bayes_clf.pickle')
 
         self.logger = logging.getLogger(__name__)
 
@@ -73,7 +76,7 @@ class PathFinder(metaclass=Singleton):
                                  'frame is None.'))
             return False
 
-        if len(frame.shape) != 3 or frame.shape[3] != 3:
+        if len(frame.shape) != 3 or frame.shape[2] != 3:
             self.logger.warning(('The input `frame` does not have the correct'
                                  ' number of channels. The HSV threshold '
                                  'calibration is unsuccessful'))
@@ -223,50 +226,73 @@ class PathFinder(metaclass=Singleton):
 
 
     def locateBricksBayes(self, frame):
-        # copy of original input
-        frame_original = frame.copy()
+        ## copy of original input
+        #frame_original = frame.copy()
 
-        #frame_original = cv.blur(frame_original, (5,5))
-        # Select ROI
-        r = cv.selectROI(frame_original)
-        # Crop image
-        imCrop = frame_original[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-        # convert to HSV
-        brick = cv.cvtColor(imCrop,cv.COLOR_BGR2HSV)
-        brick = brick.reshape(-1,3)
-        brick_y = np.ones(brick.shape[0])
+        ##frame_original = cv.blur(frame_original, (5,5))
+        ## Select ROI
+        #r = cv.selectROI(frame_original)
+        ## Crop image
+        #imCrop = frame_original[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
+        ## convert to HSV
+        #brick = cv.cvtColor(imCrop,cv.COLOR_BGR2HSV)
+        #brick = brick.reshape(-1,3)
+        #brick_y = np.ones(brick.shape[0])
 
-        # Select ROI
-        r = cv.selectROI(frame_original)
-        # Crop image
-        imCrop = frame_original[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-        # convert to HSV
-        mortar = cv.cvtColor(imCrop,cv.COLOR_BGR2HSV)
-        mortar = mortar.reshape(-1,3)
-        mortar_y = np.zeros(mortar.shape[0])
+        ## Select ROI
+        #r = cv.selectROI(frame_original)
+        ## Crop image
+        #imCrop = frame_original[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
+        ## convert to HSV
+        #mortar = cv.cvtColor(imCrop,cv.COLOR_BGR2HSV)
+        #mortar = mortar.reshape(-1,3)
+        #mortar_y = np.zeros(mortar.shape[0])
 
-        X = np.vstack([brick,mortar])
-        y = np.hstack([brick_y,mortar_y])
+        #X = np.vstack([brick,mortar])
+        #y = np.hstack([brick_y,mortar_y])
 
-        pred_img = cv.cvtColor(frame_original, cv.COLOR_BGR2HSV)
-        pred_img = pred_img.reshape(-1,3)
+        #pred_img = cv.cvtColor(frame_original, cv.COLOR_BGR2HSV)
+        #pred_img = pred_img.reshape(-1,3)
 
-        from sklearn.naive_bayes import GaussianNB
-        gnb = GaussianNB()
-        pred = gnb.fit(X, y).predict(pred_img)
+        frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        pred = self.bayes_clf.predict(frame_hsv.reshape(-1,3))
         pred *= 255
-        pred = pred.reshape(frame_original.shape[:2])
+        pred = pred.reshape(frame.shape[:2])
         pred = pred.astype(np.uint8)
 
-        #cv.imshow('prediction',pred)
+        # morphology
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7,7))
+        closing = cv.morphologyEx(pred, cv.MORPH_CLOSE, kernel)
 
         # generate final mask based on connected component analysis
         mask = self.connectedComponentsBasedFilter_(pred)
+        
+        cv.imshow('prediction',pred)
+        cv.imshow('mask',mask)
 
         return mask
 
 
     def locateBricksHsv(self, frame):
+        """
+        Segments the input frame based on HSV threshold values. This function
+        requires that the lower and upper HSV thresholds are already available.
+        Use the `calibrateHsvThresholds_()` function to calibrate them.
+
+        Parameters
+        ----------        
+        frame: array
+            The array containing the colour image data. The input is interpreted
+            as a BGR 3-channel image. If `frame` hasn't got 3 channels, this
+            function fails and returns False.
+
+        Returns
+        -------
+        mask: array
+            The final mask image array (2 channels, binary). 255 represents brick
+            pixels, 0 for the mortar.
+        """
+
         # check if the lower and upper bounds have been set
         if self.lowerb is None or self.upperb is None:
             self.logger.error(('The lower and/or upper HSV threshold bounds'
@@ -276,13 +302,10 @@ class PathFinder(metaclass=Singleton):
         if len(frame.shape) != 3 or frame.shape[2] != 3: 
             self.logger.error('The frame input does not contain 3 channels.')
             return None
-
-        # copy of original input
-        frame_original = frame.copy()
         
         # hsv thresholding
-        frame_HSV = cv.cvtColor(frame_original, cv.COLOR_BGR2HSV)
-        frame_threshold = cv.inRange(frame_HSV, self.lowerb, self.upperb)
+        frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        frame_threshold = cv.inRange(frame_hsv, self.lowerb, self.upperb)
 
         # morphology
         kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7,7))
