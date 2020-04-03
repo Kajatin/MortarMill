@@ -126,22 +126,30 @@ class PathFinder(metaclass=Singleton):
                 # reshape image into 2D array
                 frame_to_fit = frame_hsv.reshape(-1, 3)
 
-                # fit kmeans with 2 classes on the array
-                kmeans = KMeans(n_clusters=2).fit(frame_to_fit)
+                # fit kmeans with a number of classes on the array
+                kmeans = KMeans(n_clusters=4).fit(frame_to_fit)
 
                 #TODO: refine this code to find the correct cluster center
-                # find the cluster center corresponding to the bricks
-                mask = kmeans.labels_.reshape(frame_hsv.shape[0], frame_hsv.shape[1])
-                mask = mask.astype(np.uint8)
                 
-                # refine mask (remove small objects)
-                mask = self.connectedComponentsBasedFilter_(mask)
+                # determine the count of unique kmeans labels assuming that the
+                # label belonging to the bricks will be most frequent
+                unique, count = np.unique(kmeans.labels_, return_counts=True)
 
-                # determine the number of BLOBs in the final mask
-                # if it is a small number the 0-index cluster center is selected
-                # otherwise the 1-index cluster center
-                nb_comp, *_ = cv.connectedComponentsWithStats(mask, connectivity=8)
-                i = 0 if nb_comp < 3 else 1
+                # select the index of most frequent unique label (these are the bricks)
+                i = unique[count.argmax()]
+                
+                ## find the cluster center corresponding to the bricks
+                #mask = kmeans.labels_.reshape(frame_hsv.shape[0], frame_hsv.shape[1])
+
+                ## create binary image where 255 corresponds to brick pixels
+                #mask = np.where(mask==i, 255, 0)
+                #mask = mask.astype(np.uint8)
+
+                ## refine mask (remove small objects)
+                #mask = self.connectedComponentsBasedFilter_(mask)
+
+                ## show mask in debug mode
+                #cv.imshow('Auto HSV threshold mask',mask)
 
                 self.logger.debug(('Found cluster centers for HSV thresholds: {}'
                                    '. The selected cluster index is {}.')
@@ -158,7 +166,7 @@ class PathFinder(metaclass=Singleton):
                 self.logger.info('Final HSV threshold values: {}'.format(maxs))
 
             # generate lower and upper HSV bounds
-            eps = 30
+            eps = 10
             lowerb = tuple([int(val-eps) for val in maxs])
             upperb = tuple([int(val+eps) for val in maxs])
             self.logger.debug(('Candidate HSV threshold ranges found (not yet '
@@ -186,7 +194,7 @@ class PathFinder(metaclass=Singleton):
                                 'Lower: {}\tupper: {}').format(self.lowerb, self.upperb))
             break
 
-        cv.destroyAllWindows()
+        #cv.destroyAllWindows()
         return True
 
 
@@ -225,40 +233,45 @@ class PathFinder(metaclass=Singleton):
         return final_mask
 
 
-    def locateBricksBayes(self, frame):
-        ## copy of original input
-        #frame_original = frame.copy()
+    def locateBricksBayes(self, frame, hsv=False):
+        """
+        Segments the input frame using a naive Bayes classifier (trained on HSV
+        values). This function requires that the Bayes classifier is already available.
+        Use the `trainer.classifier.trainBayesClassifier()` function to create it.
 
-        ##frame_original = cv.blur(frame_original, (5,5))
-        ## Select ROI
-        #r = cv.selectROI(frame_original)
-        ## Crop image
-        #imCrop = frame_original[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-        ## convert to HSV
-        #brick = cv.cvtColor(imCrop,cv.COLOR_BGR2HSV)
-        #brick = brick.reshape(-1,3)
-        #brick_y = np.ones(brick.shape[0])
+        Parameters
+        ----------        
+        frame: array
+            The array containing the colour image data. The input is interpreted
+            as a BGR or HSV (see `hsv` argument) 3-channel image. If `frame`
+            hasn't got 3 channels, this function fails and returns False.
+        hsv (Optional): bool
+            If True, the input is interpreted as an HSV 3-channel image. Otherwise,
+            it is interpreted as BGR. Default: False
 
-        ## Select ROI
-        #r = cv.selectROI(frame_original)
-        ## Crop image
-        #imCrop = frame_original[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-        ## convert to HSV
-        #mortar = cv.cvtColor(imCrop,cv.COLOR_BGR2HSV)
-        #mortar = mortar.reshape(-1,3)
-        #mortar_y = np.zeros(mortar.shape[0])
+        Returns
+        -------
+        mask: array
+            The final mask image array (2 channels, binary). 255 represents brick
+            pixels, 0 for the mortar.
+        """
 
-        #X = np.vstack([brick,mortar])
-        #y = np.hstack([brick_y,mortar_y])
+        # check that there is a bayes classifier available
+        if self.bayes_clf is None:
+            self.logger.error(('The Bayes classifier is not available. Cannot '
+                               'run HSV segmentation.'))
+            return None
+        # check that the input frame has 3 channels (BGR)
+        if len(frame.shape) != 3 or frame.shape[2] != 3: 
+            self.logger.error('The frame input does not contain 3 channels.')
+            return None
 
-        #pred_img = cv.cvtColor(frame_original, cv.COLOR_BGR2HSV)
-        #pred_img = pred_img.reshape(-1,3)
-
-        frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
+        # convert input to HSV if it is not already that
+        frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV) if not hsv else frame
+        # make predictions for each pixel with naive bayes
         pred = self.bayes_clf.predict(frame_hsv.reshape(-1,3))
         pred *= 255
-        pred = pred.reshape(frame.shape[:2])
-        pred = pred.astype(np.uint8)
+        pred = pred.reshape(frame.shape[:2]).astype(np.uint8)
 
         # morphology
         kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7,7))
@@ -267,13 +280,10 @@ class PathFinder(metaclass=Singleton):
         # generate final mask based on connected component analysis
         mask = self.connectedComponentsBasedFilter_(pred)
         
-        cv.imshow('prediction',pred)
-        cv.imshow('mask',mask)
-
         return mask
 
 
-    def locateBricksHsv(self, frame):
+    def locateBricksHsv(self, frame, hsv=False):
         """
         Segments the input frame based on HSV threshold values. This function
         requires that the lower and upper HSV thresholds are already available.
@@ -285,6 +295,9 @@ class PathFinder(metaclass=Singleton):
             The array containing the colour image data. The input is interpreted
             as a BGR 3-channel image. If `frame` hasn't got 3 channels, this
             function fails and returns False.
+        hsv (Optional): bool
+            If True, the input is interpreted as an HSV 3-channel image. Otherwise,
+            it is interpreted as BGR. Default: False
 
         Returns
         -------
@@ -303,8 +316,9 @@ class PathFinder(metaclass=Singleton):
             self.logger.error('The frame input does not contain 3 channels.')
             return None
         
+        # convert input to HSV if it is not already that
+        frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV) if not hsv else frame
         # hsv thresholding
-        frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
         frame_threshold = cv.inRange(frame_hsv, self.lowerb, self.upperb)
 
         # morphology
@@ -373,10 +387,13 @@ class PathFinder(metaclass=Singleton):
         #cv.imshow('blurred',np.hstack((frame, blurred)))
         #cv.waitKey(0)
         
-        im_selected = mask
+        #im_selected = mask
+        im_selected = frame.copy()
 
         canny = cv.Canny(im_selected, min, max)
-        cv.imshow('canny',np.hstack((im_selected, canny)))
+        cv.imshow('image',im_selected)
+        cv.imshow('canny',canny)
+        #return
 
         #lines = cv.HoughLinesP(frame, rho, theta, threshold[, lines[, minLineLength[, maxLineGap]]])
         lines = cv.HoughLinesP(canny, 1, math.pi/2, 2, None, 10, 3);
@@ -441,12 +458,21 @@ class PathFinder(metaclass=Singleton):
 
         mask_hsv = self.locateBricksHsv(frame_colour)
         mask_bayes = self.locateBricksBayes(frame_colour)
-        #mask_hist = self.locateBricksHistogram(frame_colour, 0)
+        mask_hist = self.locateBricksHistogram(frame_colour, 0)
         #self.locate_bricks(frame_colour,100,160)
 
         #TODO: implement a better way to combine the masks maybe based on propabilities
         # final mask
         mask = cv.bitwise_or(mask_hsv,mask_bayes)
+
+        masks = [mask_hsv, mask_bayes, mask_hist]
+        masks = [mask_.astype(np.float32) for mask_ in masks]
+        mask2 = np.zeros(masks[0].shape)
+        for mask_ in masks:
+            mask2 += mask_
+        mask2 *= 255/mask2.max()
+        mask2 = mask2.astype(np.uint8)
+        cv.imshow('mask2',mask2)
 
         # detect bricks with final mask
         frame_colour_copy = frame_colour.copy()

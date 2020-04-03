@@ -28,6 +28,9 @@
     <Compile Include="brick.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="junk\pb_contour.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="main_temp.py">
       <SubType>Code</SubType>
     </Compile>

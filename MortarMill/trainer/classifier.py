@@ -31,17 +31,41 @@ def trainSvmClassifier(path, unsupervised=True):
     return clf
 
 
-def trainBayesClassifier(path):
-    # load the sample images and create the dataset
-    data = trainer.dataset.loadDatasetPath(path)
-    # check if the dataset could be created
-    if data is None:
-        logger.error(('Cannot train Bayes classifier since the dataset could'
-                      ' not be created.'))
-        return None
+def trainBayesClassifier(arg):
+    if isinstance(arg, np.ndarray):
+        # convert to HSV
+        frame_hsv = cv.cvtColor(arg,cv.COLOR_BGR2HSV)
+        
+        # manually select ROI of brick to generate training data
+        r = cv.selectROI('Select brick area',arg)
+        cv.destroyWindow('Select brick area')
+        # crop image
+        frame_cropped = frame_hsv[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
+        brick = frame_cropped.reshape(-1,3)
+        brick_y = np.ones(brick.shape[0])
 
-    # create the training data from the given samples
-    X, y = trainer.dataset.createHsvTrainingData(data)
+        # manually select ROI of mortar to generate training data
+        r = cv.selectROI('Select mortar area',arg)
+        cv.destroyWindow('Select mortar area')
+        # crop image
+        frame_cropped = frame_hsv[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
+        mortar = frame_cropped.reshape(-1,3)
+        mortar_y = np.zeros(mortar.shape[0])
+
+        X = np.vstack([brick,mortar])
+        y = np.hstack([brick_y,mortar_y])
+    
+    else:
+        # load the sample images and create the dataset
+        data = trainer.dataset.loadDatasetPath(arg)
+        # check if the dataset could be created
+        if data is None:
+            logger.error(('Cannot train Bayes classifier since the dataset could'
+                          ' not be created.'))
+            return None
+
+        # create the training data from the given samples
+        X, y = trainer.dataset.createHsvTrainingData(data)
 
     # train Bayes classifier
     clf = naive_bayes.GaussianNB()
