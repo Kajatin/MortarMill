@@ -40,13 +40,7 @@
     <Compile Include="junk\camera_connection.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="common\preprocessing.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="common\__init__.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="common\FCM.py">
+    <Compile Include="vision\FCM.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="junk\fft.py">
@@ -94,7 +88,6 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="common\" />
     <Folder Include="junk\" />
     <Folder Include="trainer\" />
     <Folder Include="unittests\" />

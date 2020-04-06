@@ -4,7 +4,8 @@ import logging
 import cv2 as cv
 import numpy as np
 
-import common.preprocessing
+from . import classifier
+
 
 logger = logging.getLogger(__name__)
 
@@ -68,12 +69,12 @@ def createTrainingData(dataset, unsupervised=True, ratio=0.05):
         image = cv.imread(path)
         #image = cv.resize(image, (600, int(image.shape[0] * (600.0/image.shape[1]))))
 
-        #CF, TF = common.preprocessing.calculateColorAndTextureFeatures(image.copy())
+        #CF, TF = vision.imgproc.calculateColorAndTextureFeatures(image.copy())
         #features = np.hstack((CF.reshape(-1,3),TF.reshape(-1,1)))
 
         if unsupervised:
             #TODO: implement case where first all CF,TF features are calculated for all images before the FCM is called
-            training = common.preprocessing.assignLabelsUnsupervised(image, features, image.reshape(-1,3), ratio)
+            training = classifier.assignLabelsUnsupervised(image, features, image.reshape(-1,3), ratio)
     
             X.append(np.vstack([training[0],training[1]]))
             y.append(np.hstack([np.repeat(0,len(training[0])),np.repeat(1,len(training[1]))]))

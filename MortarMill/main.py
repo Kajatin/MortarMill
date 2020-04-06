@@ -2,7 +2,9 @@
 # modules that use logging need to be imported after the logger setup
 import logging
 import datetime
-
+# create log folder if it does not exist
+if not os.path.isdir('logs/'):
+    os.makedirs('logs/')
 date = datetime.datetime.now().strftime("%d%m%Y%H%M%S")
 logging.basicConfig(filename=f'logs/{date}.log',
                     level=logging.DEBUG,
@@ -15,8 +17,8 @@ import cv2 as cv
 import numpy as np
 import pyrealsense2 as rs
 
+import vision
 from path_finder import PathFinder
-from vision.device import Device
 
 
 if __name__ == '__main__':
@@ -44,8 +46,8 @@ if __name__ == '__main__':
     cameras = []
     # iterate over devices
     for device in devices:
-        #cameras.append(Device(device, align=True))
-        cameras.append(Device(device, align=True, load_path='samples/recordings/time_11032020133308_device_943222071836.bag'))
+        #cameras.append(vision.Device(device, align=True))
+        cameras.append(vision.Device(device, align=True, load_path='samples/recordings/time_11032020133308_device_943222071836.bag'))
 
     # only work with one camera for now
     camera = cameras[0]

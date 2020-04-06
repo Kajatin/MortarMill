@@ -1,18 +1,19 @@
+# builtins
 import logging
 
+# 3rd party
 import cv2 as cv
 import numpy as np
-import math
 from scipy.stats import kurtosis
-from matplotlib import pyplot as plt
-from sklearn.cluster import KMeans
 
-from common.FCM import FCM
-from vision import imgproc
-from trainer import classifier
+# custom
+import vision
+import trainer
 
 
 class Singleton(type):
+    """ Metaclass used to create a singleton class instance """
+
     _instances = {}
     def __call__(cls, *args, **kwargs):
         if cls not in cls._instances:
@@ -23,12 +24,12 @@ class Singleton(type):
 class PathFinder(metaclass=Singleton):
     """description of class"""
 
-    def __init__(self):
+    def __init__(self, config=None):
         # lower and upper HSV threshold ranges
         self.lowerb = None
         self.upperb = None
         # Bayes classifier
-        self.bayes_clf = classifier.loadClassifier('bayes_clf.pickle')
+        self.bayes_clf = trainer.classifier.loadClassifier('bayes_clf.pickle')
 
         self.logger = logging.getLogger(__name__)
 
@@ -41,196 +42,6 @@ class PathFinder(metaclass=Singleton):
 
     def __call__(self, frames):
         self.__processFrames(frames)
-        
-        
-    def calibrateHsvThresholds_(self, frame, supervised=True):
-        """
-        Finds the best HSV threshold values used to separate the bricks from
-        the mortar.
-
-        Parameters
-        ----------        
-        frame: array
-            The array containing the colour image data. The input is interpreted
-            as a BGR 3-channel image. If `frame` hasn't got 3 channels, this
-            function fails and returns False.
-
-        supervised(Optional): bool
-            If set to True, the HSV calibration is performed manually by the user.
-            During the process, the user selects the area of the brick. Once the
-            calibration is done, the user can press `s` to accept the results,
-            `esc` to cancel the calibration, and any other button to try again.
-            If False, the calibration is done automatically. The algorithm finds
-            the suitable HSV threshold values that separate the bricks from the mortar.
-
-        Returns
-        -------
-        ret: bool
-            Returns True if the calibration is successful, otherwise False.
-        """
-
-        # validate the arguments
-        if frame is None:
-            self.logger.warning(('The HSV threshold calibration is '
-                                 'unsuccessful because the input '
-                                 'frame is None.'))
-            return False
-
-        if len(frame.shape) != 3 or frame.shape[2] != 3:
-            self.logger.warning(('The input `frame` does not have the correct'
-                                 ' number of channels. The HSV threshold '
-                                 'calibration is unsuccessful'))
-            return False
-
-        while 1:
-            if supervised:
-                self.logger.info('Starting HSV threshold calibration in manual mode.')
-
-                # manually select ROI (area of a brick)
-                r = cv.selectROI(frame)
-
-                # crop image -> extract the brick pixels
-                frame_cropped = frame[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-                # convert to HSV
-                frame_hsv = cv.cvtColor(frame_cropped, cv.COLOR_BGR2HSV)
-            
-                # evaluate histograms
-                maxs = []
-                colours = ('b','g','r')
-                for i,c in enumerate(colours):
-                    # calculate histogram for given channel
-                    hist = cv.calcHist([frame_hsv], [i], None, [256], [0,256])
-                    # append the index of the maximum to array
-                    maxs.append(hist.argmax())
-                
-                    # plot the histogram for given channel
-                    plt.plot(hist,color=c)
-                    plt.plot(maxs[-1], hist[maxs[-1]], color=c, marker='x')
-                    plt.xlim([0,256])
-
-                # show the histogram plot
-                plt.show()
-
-            else:
-                self.logger.info('Starting HSV threshold calibration in automatic mode.')
-                # automatically find brick cluster center
-
-                # convert to HSV
-                frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-
-                # normalize values to 0-1 range
-                frame_hsv = frame_hsv.astype(np.float64)
-                frame_hsv[:,:,0] /= 179.0
-                frame_hsv[:,:,1:3] /= 255.0
-
-                # reshape image into 2D array
-                frame_to_fit = frame_hsv.reshape(-1, 3)
-
-                # fit kmeans with a number of classes on the array
-                kmeans = KMeans(n_clusters=4).fit(frame_to_fit)
-
-                #TODO: refine this code to find the correct cluster center
-                
-                # determine the count of unique kmeans labels assuming that the
-                # label belonging to the bricks will be most frequent
-                unique, count = np.unique(kmeans.labels_, return_counts=True)
-
-                # select the index of most frequent unique label (these are the bricks)
-                i = unique[count.argmax()]
-                
-                ## find the cluster center corresponding to the bricks
-                #mask = kmeans.labels_.reshape(frame_hsv.shape[0], frame_hsv.shape[1])
-
-                ## create binary image where 255 corresponds to brick pixels
-                #mask = np.where(mask==i, 255, 0)
-                #mask = mask.astype(np.uint8)
-
-                ## refine mask (remove small objects)
-                #mask = self.connectedComponentsBasedFilter_(mask)
-
-                ## show mask in debug mode
-                #cv.imshow('Auto HSV threshold mask',mask)
-
-                self.logger.debug(('Found cluster centers for HSV thresholds: {}'
-                                   '. The selected cluster index is {}.')
-                                  .format(kmeans.cluster_centers_, i))
-                
-                # set the `maxs` array with the HSV threshold values
-                maxs = kmeans.cluster_centers_[i].copy()
-
-                # scale back up to the correct HSV range
-                maxs[0] *= 179
-                maxs[1:3] *= 255
-                maxs = maxs.astype(np.uint8)
-
-                self.logger.info('Final HSV threshold values: {}'.format(maxs))
-
-            # generate lower and upper HSV bounds
-            eps = 10
-            lowerb = tuple([int(val-eps) for val in maxs])
-            upperb = tuple([int(val+eps) for val in maxs])
-            self.logger.debug(('Candidate HSV threshold ranges found (not yet '
-                              'accepted). Lower: {} Upper: {}').format(lowerb,upperb))
-
-            if supervised:
-                # test the HSV thresholding
-                frame_HSV = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-                frame_threshold = cv.inRange(frame_HSV, lowerb, upperb)
-                cv.imshow('threshold',frame_threshold)
-
-                key = cv.waitKey(0)
-                if key == 27:
-                    self.logger.warning(('Calibration of the HSV threshold '
-                                         'ranges is unsuccessful. The user'
-                                         ' did not accept the any of the results.'))
-                    break
-                elif key != ord('s'):
-                    continue
-
-            # save the HSV threshold calibration results
-            self.lowerb = lowerb
-            self.upperb = upperb
-            self.logger.info(('Calibrated the HSV threshold ranges. '
-                                'Lower: {}\tupper: {}').format(self.lowerb, self.upperb))
-            break
-
-        #cv.destroyAllWindows()
-        return True
-
-
-    def connectedComponentsBasedFilter_(self, frame):
-        if len(frame.shape) != 2:
-            self.logger.error(('This function can only be called with a single '
-                               'channel 8-bit image.'))
-            return None
-
-        # connected components
-        nb_comp, label, stats, centroids = cv.connectedComponentsWithStats(frame, connectivity=8)
-        min_size = 250
-
-        cc_out = np.zeros((frame.shape))
-        for i in range(1,nb_comp):
-            if stats[i, -1] >= min_size:
-                cc_out[label == i] = 255
-
-        # connected components inverted
-        inverted_image = np.zeros((cc_out.shape),np.uint8)
-        inverted_image[cc_out == 0] = 255
-
-        nb_comp_i, label_i, stats_i, centroids_i = cv.connectedComponentsWithStats(inverted_image, connectivity=8)
-        min_size = 2000
-
-        cc_out_inverted = np.zeros((frame.shape))
-        for i in range(1,nb_comp_i):
-            if stats_i[i,-1] >= min_size:
-                cc_out_inverted[label_i == i] = 255
-
-        # final mask
-        final_mask = np.zeros((cc_out_inverted.shape),np.uint8)
-        final_mask[cc_out_inverted == 0] = 255
-        #cv.imshow('final mask', final_mask)
-
-        return final_mask
 
 
     def locateBricksBayes(self, frame, hsv=False):
@@ -278,7 +89,7 @@ class PathFinder(metaclass=Singleton):
         closing = cv.morphologyEx(pred, cv.MORPH_CLOSE, kernel)
 
         # generate final mask based on connected component analysis
-        mask = self.connectedComponentsBasedFilter_(pred)
+        mask = vision.imgproc.connectedComponentsBasedFilter(pred)
         
         return mask
 
@@ -326,7 +137,7 @@ class PathFinder(metaclass=Singleton):
         closing = cv.morphologyEx(frame_threshold, cv.MORPH_CLOSE, kernel)
         
         # generate final mask based on connected component analysis
-        mask = self.connectedComponentsBasedFilter_(closing)
+        mask = vision.imgproc.connectedComponentsBasedFilter(closing)
 
         return mask
 
@@ -361,95 +172,10 @@ class PathFinder(metaclass=Singleton):
         mask = np.ones(frame.shape[:2], np.uint8) * 255
         mask[rows,] = 0
 
-        #cv.imshow('Histogram based segmentation',np.vstack([frame, image_row, image_col]))
-        #cv.imshow('Mask Histogram',mask)
+        cv.imshow('Histogram based segmentation',np.vstack([frame, image_row, image_col]))
+        cv.imshow('Mask Histogram',mask)
 
         return mask
-
-
-    def locate_bricks(self, image_arg, min, max):
-        frame = image_arg.copy()
-        
-        frame_HSV = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
-        frame_threshold = cv.inRange(frame_HSV, self.lowerb, self.upperb)
-
-        # morphology
-        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (5,5))
-        closing = cv.morphologyEx(frame_threshold, cv.MORPH_CLOSE, kernel)
-        opening = cv.morphologyEx(closing, cv.MORPH_OPEN, kernel)
-
-        mask = closing
-        res = cv.bitwise_and(frame,frame,mask=mask)
-        #cv.imshow("mask",mask)
-        
-        
-        #blurred = cv.GaussianBlur(image_gray, (9,9), 0)
-        #cv.imshow('blurred',np.hstack((frame, blurred)))
-        #cv.waitKey(0)
-        
-        #im_selected = mask
-        im_selected = frame.copy()
-
-        canny = cv.Canny(im_selected, min, max)
-        cv.imshow('image',im_selected)
-        cv.imshow('canny',canny)
-        #return
-
-        #lines = cv.HoughLinesP(frame, rho, theta, threshold[, lines[, minLineLength[, maxLineGap]]])
-        lines = cv.HoughLinesP(canny, 1, math.pi/2, 2, None, 10, 3);
-
-        if lines is not None:
-            for line in lines:
-                for x1,y1,x2,y2 in line:
-                    pt1 = (x1,y1)
-                    pt2 = (x2,y2)
-                    cv.line(frame, pt1, pt2, (0,0,255), 3)
-
-        cv.imshow('hough',frame)
-
-
-        laplace = cv.Laplacian(im_selected, cv.CV_64F, ksize=3)
-        laplace = cv.convertScaleAbs(laplace, None, 255.0/np.absolute(laplace).max())
-        cv.imshow('laplace',laplace)
-
-
-        sobelx = cv.Sobel(im_selected,cv.CV_64F,1,0,None,5)
-        sobely = cv.Sobel(im_selected,cv.CV_64F,0,1,None,5)
-
-        sobelx = cv.convertScaleAbs(sobelx, None, 255.0/np.absolute(sobelx).max())
-        sobely = cv.convertScaleAbs(sobely, None, 255.0/np.absolute(sobely).max())
-
-        cv.imshow('sobelx',sobelx)
-        cv.imshow('sobely',sobely)
-
-        sobel_added = sobelx + sobely
-        sobel_added = cv.convertScaleAbs(sobel_added, None, 255.0/np.absolute(sobel_added).max())
-        cv.imshow('sobel_added',sobel_added)
-
-        threshold = 225
-
-        #sobelx_bin = cv.adaptiveThreshold(sobelx,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY,11,2)
-        ret, sobelx_bin = cv.threshold(sobelx, threshold, 255, cv.THRESH_BINARY)
-        #ret, sobelx_bin = cv.threshold(sobelx, threshold, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
-        cv.imshow('sobelx_bin', sobelx_bin)
-
-        #sobely_bin = cv.adaptiveThreshold(sobely,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY,11,2)
-        ret, sobely_bin = cv.threshold(sobely, threshold, 255, cv.THRESH_BINARY)
-        #ret, sobely_bin = cv.threshold(sobely, threshold, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
-        cv.imshow('sobely_bin', sobely_bin)
-
-        #sobel_added_bin = cv.adaptiveThreshold(sobel_added,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY,11,2)
-        ret, sobel_added_bin = cv.threshold(sobel_added, threshold, 255, cv.THRESH_BINARY)
-        #ret, sobel_added_bin = cv.threshold(sobel_added, threshold, 255, cv.THRESH_BINARY+cv.THRESH_OTSU)
-        cv.imshow('sobel_added_bin', sobel_added_bin)
-
-
-        # morphology
-        #kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (3,3))
-        #sobely_erosion = cv.morphologyEx(sobely_bin, cv.MORPH_OPEN, kernel)
-        #cv.imshow('sobely_erosion', sobely_erosion)
-
-        return None
 
 
     def __processFrames(self, frames):
@@ -494,7 +220,7 @@ class PathFinder(metaclass=Singleton):
         masked_orig = cv.bitwise_and(frame_colour,frame_colour,mask=np.invert(mask))
         cv.imshow('output',np.vstack((frame_colour_copy,masked_orig,frame_colour)))
 
-
+        cv.imwrite('final.jpg',mask)
 
 
         #########################################################

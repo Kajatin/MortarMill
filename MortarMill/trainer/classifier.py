@@ -7,6 +7,7 @@ import numpy as np
 from sklearn import svm, naive_bayes
 
 import trainer.dataset
+from vision import FCM
 
 logger = logging.getLogger(__name__)
 
@@ -135,6 +136,46 @@ def loadClassifier(file, path='models/'):
     
     logger.error('Cannot load classifier from {}.'.format(os.path.join(path,file)))
     return None
+
+
+def assignLabelsUnsupervised(image, features, features_t=None, ratio=0.05):
+    #TODO: remove image input, not needed
+
+    if features_t is None:
+        features_t = features
+
+    # fuzzy c-means
+    # fit the fuzzy-c-means
+    fcm = FCM(n_clusters=2,m=1.3,max_iter=1500,error=1e-7,random_state=np.random.randint(10000))
+    fcm.fit(features)
+
+    # outputs
+    fcm_centers = fcm.centers
+    fcm_labels  = fcm.u.argmax(axis=1)
+    unique, counts = np.unique(fcm_labels, return_counts=True)
+    print(fcm_centers)
+    print(unique, counts)
+
+    fcm_labels = np.ones((features.shape[0],)) * 0.5
+    training = {}
+    keys = unique
+    for i in unique:
+        args = fcm.u.argpartition(-int(counts[i]*ratio),axis=0)[-int(counts[i]*ratio):]
+        fcm_labels[args[:,i]] = i
+        training[keys[i]] = features_t[args[:,i],:]
+
+    fcm_labels = fcm_labels.reshape(image.shape[:2])
+    fcm_labels = cv.normalize(fcm_labels, None, 0, 255, cv.NORM_MINMAX)
+    fcm_labels = fcm_labels.astype(np.uint8)
+    cv.imshow('fcm_labels',fcm_labels)
+
+    fcm_labels  = fcm.u.argmax(axis=1)
+    fcm_labels = fcm_labels.reshape(image.shape[:2])
+    fcm_labels = cv.normalize(fcm_labels, None, 0, 255, cv.NORM_MINMAX)
+    fcm_labels = fcm_labels.astype(np.uint8)
+    cv.imshow('fcm_labels_orig',fcm_labels)
+
+    return training
 
 
 if __name__ == '__main__':
