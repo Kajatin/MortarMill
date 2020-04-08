@@ -422,11 +422,13 @@ def separateDepthPlanes(frame):
     xy = [[x,y] for x in range(h) for y in range(w)]
     z = [frame[x,y]*1000 for x in range(h) for y in range(w)]
     
-    ransac = linear_model.RANSACRegressor(linear_model.LinearRegression())
-    ransac.fit(xy,z)
-
     mask_ransac = np.zeros(frame.shape[:2], np.uint8)
-    mask_ransac[ransac.inlier_mask_.reshape(h,w)] = 255
+    try:
+        ransac = linear_model.RANSACRegressor(linear_model.LinearRegression())
+        ransac.fit(xy,z)
+        mask_ransac[ransac.inlier_mask_.reshape(h,w)] = 255
+    except:
+        pass
 
     # plane fitting method with PCA
     cloud = [[x,y,frame[x,y]] for x in range(h) for y in range(w)]

@@ -120,7 +120,8 @@ def loadClassifier(file, path='models/'):
     Parameters
     ----------
     file: string
-        Name of the pickle file (with `.pickle` file extension).
+        Name of the pickle file (with `.pickle` file extension). If None, returns
+        None.
     path: string
         String that specifies the path to the pickle file.
 
@@ -129,6 +130,10 @@ def loadClassifier(file, path='models/'):
     ret: bool
         Returns the loaded classifier nominally. Otherwise returns None.
     """
+
+    if file is None:
+        logger.error('Cannot load classifier because filename is None.')
+        return None
 
     if os.path.isfile(os.path.join(path,file)):
         logger.info('Loading classifier from {}.'.format(os.path.join(path,file)))

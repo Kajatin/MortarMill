@@ -1,13 +1,18 @@
-# set up logging
-# modules that use logging need to be imported after the logger setup
 import logging
 import datetime
+import os
+
+from confighandler import ConfigHandler
+ch = ConfigHandler('config.ini')
+
+# set up logging
+# modules that use logging need to be imported after the logger setup
 # create log folder if it does not exist
 if not os.path.isdir('logs/'):
     os.makedirs('logs/')
 date = datetime.datetime.now().strftime("%d%m%Y%H%M%S")
 logging.basicConfig(filename=f'logs/{date}.log',
-                    level=logging.DEBUG,
+                    level=ch.getLogLevel(),
                     filemode='w',
                     format='%(asctime)s.%(msecs)05d,%(levelname)s,%(pathname)s,%(lineno)d,%(module)s,%(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
@@ -26,18 +31,16 @@ if __name__ == '__main__':
     devices = rs.context().devices
     logger.info('Found {} device(s).'.format(devices.size()))
     
-    path_finder = PathFinder()
+    path_finder = PathFinder(ch.config['PATHFINDER'])
 
     # if no device is connected, use an image input instead for now
-    #TODO: hande this part correctly
     if devices.size() <= 0:
-        i = 3
+        i = 5
         image = cv.imread(f'samples/RAW/brick_zoom_{i}.jpg')
         image = cv.resize(image, (600, int(image.shape[0] * (600.0/image.shape[1]))))
 
         frames = {'colour':image,'depth':np.zeros(image.shape[:2])}
 
-        path_finder.calibrateHsvThresholds_(image)
         path_finder(frames)
 
         cv.waitKey(0)
@@ -46,8 +49,8 @@ if __name__ == '__main__':
     cameras = []
     # iterate over devices
     for device in devices:
-        #cameras.append(vision.Device(device, align=True))
-        cameras.append(vision.Device(device, align=True, load_path='samples/recordings/time_11032020133308_device_943222071836.bag'))
+        cameras.append(vision.Device(device, align=True))
+        #cameras.append(vision.Device(device, align=True, load_path='samples/recordings/time_11032020133308_device_943222071836.bag'))
 
     # only work with one camera for now
     camera = cameras[0]

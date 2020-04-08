@@ -52,8 +52,10 @@ class Device():
             # set up pipeline for a specific device based on S/N
             self.config.enable_device(self.serial)
             # see 'vision_codes_rs.txt' for rs.stream() and rs.format() code clarification
-            self.config.enable_stream(rs.stream(1), 1280, 720, rs.format(1), 30)
-            self.config.enable_stream(rs.stream(2), 1920, 1080, rs.format(6), 30)
+            #self.config.enable_stream(rs.stream(1), 1280, 720, rs.format(1), 30)
+            #self.config.enable_stream(rs.stream(2), 1920, 1080, rs.format(6), 30)
+            self.config.enable_stream(rs.stream(1), 640, 360, rs.format(1), 60)
+            self.config.enable_stream(rs.stream(2), 640, 360, rs.format(6), 60)
 
             if self.nir:
                 # see 'vision_codes_rs.txt' for rs.stream() and rs.format() code clarification

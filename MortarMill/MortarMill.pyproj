@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>45f23774-c5ff-4a05-8343-b74806015a3d</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>main_temp.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -26,6 +26,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="brick.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="confighandler.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="junk\pb_contour.py">
@@ -105,6 +108,7 @@
     </Interpreter>
   </ItemGroup>
   <ItemGroup>
+    <Content Include="config.ini" />
     <Content Include="requirements.txt" />
     <Content Include="vision_codes_rs.txt" />
   </ItemGroup>

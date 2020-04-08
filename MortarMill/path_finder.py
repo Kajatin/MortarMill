@@ -25,19 +25,37 @@ class PathFinder(metaclass=Singleton):
     """description of class"""
 
     def __init__(self, config=None):
+        self.logger = logging.getLogger(__name__)
+        self.logger.debug('Creating PathFinder instance.')
+
+        # debug mode
+        self.debug = False
         # lower and upper HSV threshold ranges
         self.lowerb = None
         self.upperb = None
-        # Bayes classifier
-        self.bayes_clf = trainer.classifier.loadClassifier('bayes_clf.pickle')
+        # bayes classifier
+        self.bayes_clf = None
+        # svm classifier
+        self.svm_clf = None
 
-        self.logger = logging.getLogger(__name__)
+        # parse the config file if it is not None
+        if config is None:
+            self.logger.warning(('No config is provided to PathFinder. Some '
+                                 'parameters might not be available, and this '
+                                 'module might not work correctly.'))
+        else:
+            self.logger.debug('Parsing config for PathFinder. {}'.format(config))
 
+            self.debug = config.getboolean('debug', False)
 
-        #TODO: implement config parser and read config and evaluate them
-        # code here
+            lowerb = (config.getint('min_h'),config.getint('min_s'),config.getint('min_v'))
+            upperb = (config.getint('max_h'),config.getint('max_s'),config.getint('max_v'))
+            self.lowerb = lowerb if all(lowerb) else None
+            self.upperb = upperb if all(upperb) else None
 
-        #self.calibrateHsvThresholds_()
+            self.bayes_clf = trainer.classifier.loadClassifier(config.get('bayes'))
+
+            self.svm_clf = trainer.classifier.loadClassifier(config.get('svm'))
 
 
     def __call__(self, frames):
@@ -172,8 +190,25 @@ class PathFinder(metaclass=Singleton):
         mask = np.ones(frame.shape[:2], np.uint8) * 255
         mask[rows,] = 0
 
-        cv.imshow('Histogram based segmentation',np.vstack([frame, image_row, image_col]))
-        cv.imshow('Mask Histogram',mask)
+        if self.debug:
+            cv.imshow('Histogram based segmentation',np.vstack([frame, image_row, image_col]))
+            cv.imshow('Mask Histogram',mask)
+
+        return mask
+
+
+    def locateBricksDepth(self, frame):
+        mask_plane, mask_ransac = vision.imgproc.separateDepthPlanes(frame)
+
+        # morphology
+        kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7,7))
+        closing = cv.morphologyEx(mask_plane, cv.MORPH_CLOSE, kernel)
+        
+        # generate final mask based on connected component analysis
+        mask = vision.imgproc.connectedComponentsBasedFilter(closing)
+
+        if self.debug:
+            cv.imshow('Depth planes based segmentation', mask)
 
         return mask
 
@@ -185,7 +220,7 @@ class PathFinder(metaclass=Singleton):
         mask_hsv = self.locateBricksHsv(frame_colour)
         mask_bayes = self.locateBricksBayes(frame_colour)
         mask_hist = self.locateBricksHistogram(frame_colour, 0)
-        #self.locate_bricks(frame_colour,100,160)
+        mask_depth = self.locateBricksDepth(frame_depth)
 
         #TODO: implement a better way to combine the masks maybe based on propabilities
         # final mask
@@ -196,31 +231,32 @@ class PathFinder(metaclass=Singleton):
         mask2 = np.zeros(masks[0].shape)
         for mask_ in masks:
             mask2 += mask_
-        mask2 *= 255/mask2.max()
+        mask2 *= 255/mask2.max() # division by 0
         mask2 = mask2.astype(np.uint8)
-        cv.imshow('mask2',mask2)
+        if self.debug:
+            cv.imshow('mask2',mask2)
 
-        # detect bricks with final mask
-        frame_colour_copy = frame_colour.copy()
-        nb_comp_f, label_f, stats_f, centroids_f = cv.connectedComponentsWithStats(mask, connectivity=8)
-        for center in centroids_f[1:]:
-            cv.drawMarker(frame_colour_copy, tuple(np.uint(center)), (255,0,0),
-                          cv.MARKER_CROSS, thickness=2)
+        if self.debug:
+            # detect bricks with final mask
+            frame_colour_copy = frame_colour.copy()
+            nb_comp_f, label_f, stats_f, centroids_f = cv.connectedComponentsWithStats(mask, connectivity=8)
+            for center in centroids_f[1:]:
+                cv.drawMarker(frame_colour_copy, tuple(np.uint(center)), (255,0,0),
+                              cv.MARKER_CROSS, thickness=2)
 
-        for stat in np.uint(stats_f[1:]):
-            cv.rectangle(frame_colour_copy,
-                         (stat[0],stat[1]),(stat[0]+stat[2],stat[1]+stat[3]),
-                         (0,0,255), 2)
+            for stat in np.uint(stats_f[1:]):
+                cv.rectangle(frame_colour_copy,
+                             (stat[0],stat[1]),(stat[0]+stat[2],stat[1]+stat[3]),
+                             (0,0,255), 2)
 
-        # detect contours
-        cnts, hrcy = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
-        cv.drawContours(frame_colour_copy, cnts, -1, (0,255,0),2)
+            # detect contours
+            cnts, hrcy = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+            cv.drawContours(frame_colour_copy, cnts, -1, (0,255,0),2)
     
-        # show brick detection results
-        masked_orig = cv.bitwise_and(frame_colour,frame_colour,mask=np.invert(mask))
-        cv.imshow('output',np.vstack((frame_colour_copy,masked_orig,frame_colour)))
+            # show brick detection results
+            masked_orig = cv.bitwise_and(frame_colour,frame_colour,mask=np.invert(mask))
+            cv.imshow('output',np.vstack((frame_colour_copy,masked_orig,frame_colour)))
 
-        cv.imwrite('final.jpg',mask)
 
 
         #########################################################
