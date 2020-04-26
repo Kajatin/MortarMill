@@ -37,7 +37,7 @@ if __name__ == '__main__':
     if devices.size() <= 0:
         i = 5
         image = cv.imread(f'samples/RAW/brick_zoom_{i}.jpg')
-        image = cv.resize(image, (600, int(image.shape[0] * (600.0/image.shape[1]))))
+        image = cv.resize(image, (848, 480))
 
         frames = {'colour':image,'depth':np.zeros(image.shape[:2])}
 
@@ -49,8 +49,7 @@ if __name__ == '__main__':
     cameras = []
     # iterate over devices
     for device in devices:
-        cameras.append(vision.Device(device, align=True))
-        #cameras.append(vision.Device(device, align=True, load_path='samples/recordings/time_11032020133308_device_943222071836.bag'))
+        cameras.append(vision.Device(device, ch.config['DEVICE']))
 
     # only work with one camera for now
     camera = cameras[0]
@@ -60,13 +59,18 @@ if __name__ == '__main__':
 
     while 1:
         # get the frames from the camera
-        frames = camera.retrieveFrames(undistort=False)
-        #camera.showFrames()
+        frames = camera.retrieveFrames()
+        camera.showFrames()
 
         # process the frames and show the final mask
-        path_finder(frames)
+        #path_finder(frames)
 
         key = cv.waitKey(1)
         if key == 27:
             camera.stopStreaming()
             break
+        elif key == ord('s'):
+            path_finder(frames)
+        elif key == ord('c'):
+            ret = vision.imgproc.calibrateHsvThresholds(frames['colour'],False)
+            print(ret)

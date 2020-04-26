@@ -3,7 +3,6 @@ logger = logging.getLogger(__name__)
 
 import cv2 as cv
 import numpy as np
-from sklearn import linear_model
 from sklearn.cluster import KMeans
 from matplotlib import pyplot as plt
 
@@ -138,7 +137,7 @@ def calibrateHsvThresholds(frame, supervised=False):
             logger.info('Final HSV threshold values: {}'.format(maxs))
 
         # generate lower and upper HSV bounds
-        eps = 10
+        eps = 20
         lowerb = tuple([int(val-eps) for val in maxs])
         upperb = tuple([int(val+eps) for val in maxs])
         logger.debug(('Candidate HSV threshold ranges found (not yet '
@@ -418,29 +417,73 @@ def findBestFitPlane(points, equation=False):
 def separateDepthPlanes(frame):
     h, w = frame.shape[:2]
 
-    # ransac method
-    xy = [[x,y] for x in range(h) for y in range(w)]
-    z = [frame[x,y]*1000 for x in range(h) for y in range(w)]
-    
-    mask_ransac = np.zeros(frame.shape[:2], np.uint8)
-    try:
-        ransac = linear_model.RANSACRegressor(linear_model.LinearRegression())
-        ransac.fit(xy,z)
-        mask_ransac[ransac.inlier_mask_.reshape(h,w)] = 255
-    except:
-        pass
-
     # plane fitting method with PCA
-    cloud = [[x,y,frame[x,y]] for x in range(h) for y in range(w)]
+
+    r = cv.selectROI(frame)
+    roi = frame[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
+    h_, w_ = roi.shape[:2]
+    cloud_filtered = []
+    lower_percentile = np.percentile(roi,0.5)
+    upper_percentile = np.percentile(roi,99.5)
+    for x in range(h_):
+        for y in range(w_):
+            if roi[x,y] != 0 \
+            and roi[x,y] > lower_percentile \
+            and roi[x,y] < upper_percentile:
+                cloud_filtered.append([x+r[1],y+r[0],roi[x,y]*1000])
                 
-    a,b,c,d = findBestFitPlane(cloud,True)
-    boolean_mask = [(a*x+b*y+c*z+d)<0.001 for x,y,z in cloud]
+    cloud = [[x,y,frame[x,y]*1000] for x in range(h) for y in range(w)]
+    #a,b,c,d = findBestFitPlane(cloud,True)
+    a,b,c,d = findBestFitPlane(cloud_filtered,True)
+    boolean_mask = [(a*x+b*y+c*z+d)<1 for x,y,z in cloud]
     boolean_mask = np.array(boolean_mask).reshape(h,w)
+    boolean_mask[frame==0] = False
 
-    mask_plane = np.zeros(frame.shape[:2],np.uint8)
-    mask_plane[boolean_mask] = 255
+    mask = np.zeros(frame.shape[:2],np.uint8)
+    mask[boolean_mask] = 255
 
-    #cv.imshow('mydepth',mask_plane)
-    #cv.imshow('mydepth_ransac',mask_ransac)
+    #cv.imshow('mydepth',mask)
 
-    return mask_plane, mask_ransac
+    return mask
+
+
+def undistortFrame(frame, params):
+    if frame is None:
+        logger.warning('Cannot do undistortion because the `frame` argument is None.')
+        return
+
+    if params is None:
+        logger.warning('Cannot do undistortion because the `params` argument is None.')
+        return
+
+    if isinstance(params, dict):
+        # extract the camera parameters for the colour image
+        camera_matrix = params['intrinsics']
+        distortion_coeffs = params['distortion']
+        new_camera_matrix = params['new_cam_matrix']
+        roi = params['roi']
+
+        logger.debug('Undistorting frame using provided camera parameters.')
+        logger.debug('Camera parameters: {}'.format(params))
+
+        # undistort image
+        frame = cv.undistort(frame, camera_matrix, distortion_coeffs, None, new_camera_matrix)
+
+        # crop the image
+        x, y, w, h = roi
+        #frame = frame[y:y+h, x:x+w]
+
+    else:
+        # built-in calib params
+        camera_matrix = np.array([[params.fx, 0, params.ppx],
+                                  [0, params.fy, params.ppy],
+                                  [0, 0, 1]])
+        distortion_coeffs = np.array([params.coeffs])
+        
+        logger.debug('Undistorting frame using built-in camera parameters.')
+        logger.debug('Camera parameters: {}'.format(params))
+
+        # undistort image
+        frame = cv.undistort(frame, camera_matrix, distortion_coeffs, None)
+
+    return frame

@@ -198,11 +198,11 @@ class PathFinder(metaclass=Singleton):
 
 
     def locateBricksDepth(self, frame):
-        mask_plane, mask_ransac = vision.imgproc.separateDepthPlanes(frame)
+        mask = vision.imgproc.separateDepthPlanes(frame)
 
         # morphology
         kernel = cv.getStructuringElement(cv.MORPH_ELLIPSE, (7,7))
-        closing = cv.morphologyEx(mask_plane, cv.MORPH_CLOSE, kernel)
+        closing = cv.morphologyEx(mask, cv.MORPH_CLOSE, kernel)
         
         # generate final mask based on connected component analysis
         mask = vision.imgproc.connectedComponentsBasedFilter(closing)
@@ -221,12 +221,12 @@ class PathFinder(metaclass=Singleton):
         mask_bayes = self.locateBricksBayes(frame_colour)
         mask_hist = self.locateBricksHistogram(frame_colour, 0)
         mask_depth = self.locateBricksDepth(frame_depth)
-
+        #return
         #TODO: implement a better way to combine the masks maybe based on propabilities
         # final mask
         mask = cv.bitwise_or(mask_hsv,mask_bayes)
 
-        masks = [mask_hsv, mask_bayes, mask_hist]
+        masks = [mask_hsv, mask_bayes, mask_hist, mask_depth]
         masks = [mask_.astype(np.float32) for mask_ in masks]
         mask2 = np.zeros(masks[0].shape)
         for mask_ in masks:
