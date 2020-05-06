@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>45f23774-c5ff-4a05-8343-b74806015a3d</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>vision\calibration.py</StartupFile>
+    <StartupFile>ml\classifier.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -31,12 +31,18 @@
     <Compile Include="confighandler.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="junk\edge_drawing.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="junk\pb_contour.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="main_temp.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="ml\classifier.py" />
+    <Compile Include="ml\dataset.py" />
+    <Compile Include="ml\__init__.py" />
     <Compile Include="vision\device.py">
       <SubType>Code</SubType>
     </Compile>
@@ -65,15 +71,6 @@
     <Compile Include="junk\temporary.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="trainer\dataset.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="trainer\classifier.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="trainer\__init__.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="unittests\test_brick.py">
       <SubType>Code</SubType>
     </Compile>
@@ -92,7 +89,8 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="junk\" />
-    <Folder Include="trainer\" />
+    <Folder Include="ml\" />
+    <Folder Include="ml\__pycache__\" />
     <Folder Include="unittests\" />
     <Folder Include="vision\" />
   </ItemGroup>
@@ -109,6 +107,9 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="config.ini" />
+    <Content Include="ml\__pycache__\classifier.cpython-37.pyc" />
+    <Content Include="ml\__pycache__\dataset.cpython-37.pyc" />
+    <Content Include="ml\__pycache__\__init__.cpython-37.pyc" />
     <Content Include="requirements.txt" />
     <Content Include="vision_codes_rs.txt" />
   </ItemGroup>

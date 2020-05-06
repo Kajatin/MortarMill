@@ -5,6 +5,7 @@ import cv2 as cv
 import numpy as np
 
 from . import classifier
+import vision
 
 
 logger = logging.getLogger(__name__)
@@ -67,21 +68,26 @@ def createTrainingData(dataset, unsupervised=True, ratio=0.05):
     for path in dataset:
         print(path)
         image = cv.imread(path)
-        #image = cv.resize(image, (600, int(image.shape[0] * (600.0/image.shape[1]))))
+        #image = cv.resize(image, (848, 480))
+        #image = cv.GaussianBlur(image, (15,15), 1)
 
         #CF, TF = vision.imgproc.calculateColorAndTextureFeatures(image.copy())
         #features = np.hstack((CF.reshape(-1,3),TF.reshape(-1,1)))
+        #features = CF.reshape(-1,3)
 
         if unsupervised:
+            #features = image.reshape(-1,3)
+            #features = cv.cvtColor(image, cv.COLOR_BGR2HSV).reshape(-1,3)
             #TODO: implement case where first all CF,TF features are calculated for all images before the FCM is called
-            training = classifier.assignLabelsUnsupervised(image, features, image.reshape(-1,3), ratio)
+            #training = classifier.assignLabelsUnsupervised(image, features, image.reshape(-1,3), ratio)
+            training = classifier.assignLabelsUnsupervised(image, features, None, ratio)
     
             X.append(np.vstack([training[0],training[1]]))
             y.append(np.hstack([np.repeat(0,len(training[0])),np.repeat(1,len(training[1]))]))
         else:
             #features_ = features
-            features_ = image.reshape(-1,3)
-            #features_ = cv.cvtColor(image, cv.COLOR_BGR2HSV).reshape(-1,3)
+            #features_ = image.reshape(-1,3)
+            features_ = cv.cvtColor(image, cv.COLOR_BGR2HSV).reshape(-1,3)
 
             # select a subset of the data used for training
             selection_features_ = features_[np.random.choice(features_.shape[0],
@@ -121,5 +127,6 @@ def createHsvTrainingData(dataset, ratio=0.05):
 
 #TODO: code this function properly (getRandomTestImage())
 def getRandomTestImage():
-    image = cv.imread('samples/RAW/brick_zoom_8.jpg')
-    return cv.resize(image, (600, int(image.shape[0] * (600.0/image.shape[1]))))
+    image = cv.imread('samples/RAW/brick_zoom_3.jpg')
+    #image = cv.imread('samples/flower2.jpg')
+    return cv.resize(image, (848, 480))
