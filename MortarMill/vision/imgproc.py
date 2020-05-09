@@ -7,12 +7,27 @@ from sklearn.cluster import KMeans
 from matplotlib import pyplot as plt
 
 
-def calculateHistogram(frame_):
-    frame = frame_.copy()
-    frame = np.clip(frame, 0, 1) * 255
-    hist = cv.calcHist([frame.astype(np.uint8)], [0], None, [256], [0,256])
+def movingAverage(data, window_size=5):
+    """ Calculates the moving average of the input array for the given window size.
 
-    return hist, frame
+    Parameters
+    ----------        
+    data: array
+        The input array (1D) for which the moving average is calculated.
+
+    windows_size: int (default: 5)
+        The size of the moving windows used for the averaging. The larger this
+        parameters is, the smoother the output becomes.
+
+    Returns
+    -------
+    ret: array
+        The averaged version of the input array. The size of this array is smaller
+        by windows_size-1.
+    """
+    
+    weights = np.ones(window_size) / window_size
+    return np.convolve(data, weights, mode='valid')
 
 
 def calibrateHsvThresholds(frame, supervised=False):
@@ -58,7 +73,7 @@ def calibrateHsvThresholds(frame, supervised=False):
             logger.info('Starting HSV threshold calibration in manual mode.')
 
             # manually select ROI (area of a brick)
-            r = cv.selectROI(frame)
+            r = cv.selectROI('Select brick area', frame)
 
             # crop image -> extract the brick pixels
             frame_cropped = frame[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
@@ -71,9 +86,10 @@ def calibrateHsvThresholds(frame, supervised=False):
             for i,c in enumerate(colours):
                 # calculate histogram for given channel
                 hist = cv.calcHist([frame_hsv], [i], None, [256], [0,256])
+                # smooth out histogram with moving average
+                hist = movingAverage(hist.ravel()).reshape(-1,1)
                 # append the index of the maximum to array
                 maxs.append(hist.argmax())
-                
                 # plot the histogram for given channel
                 plt.plot(hist,color=c)
                 plt.plot(maxs[-1], hist[maxs[-1]], color=c, marker='x')
@@ -83,8 +99,8 @@ def calibrateHsvThresholds(frame, supervised=False):
             plt.show()
 
         else:
-            logger.info('Starting HSV threshold calibration in automatic mode.')
             # automatically find brick cluster center
+            logger.info('Starting HSV threshold calibration in automatic mode.')
 
             # convert to HSV
             frame_hsv = cv.cvtColor(frame, cv.COLOR_BGR2HSV)
@@ -109,18 +125,20 @@ def calibrateHsvThresholds(frame, supervised=False):
             # select the index of most frequent unique label (these are the bricks)
             i = unique[count.argmax()]
                 
+            # DEBUG *******************************************
             ## find the cluster center corresponding to the bricks
             #mask = kmeans.labels_.reshape(frame_hsv.shape[0], frame_hsv.shape[1])
-
-            ## create binary image where 255 corresponds to brick pixels
-            #mask = np.where(mask==i, 255, 0)
+            ## normalize mask to 0-255 range
+            #mask = mask.astype(float)
+            #mask *= 255/mask.max()
             #mask = mask.astype(np.uint8)
-
+            ## create binary image where 255 corresponds to brick pixels
+            ##mask = np.where(mask==i, 255, 0)
             ## refine mask (remove small objects)
-            #mask = connectedComponentsBasedFilter(mask)
-
+            ##mask = connectedComponentsBasedFilter(mask)
             ## show mask in debug mode
             #cv.imshow('Auto HSV threshold mask', mask)
+            # DEBUG *******************************************
 
             logger.debug(('Found cluster centers for HSV thresholds: {} . '
                           'The selected cluster index is {}.')
@@ -137,9 +155,9 @@ def calibrateHsvThresholds(frame, supervised=False):
             logger.info('Final HSV threshold values: {}'.format(maxs))
 
         # generate lower and upper HSV bounds
-        eps = 20
-        lowerb = tuple([int(val-eps) for val in maxs])
-        upperb = tuple([int(val+eps) for val in maxs])
+        epss = [10, 60, 60]
+        lowerb = tuple([int(val-eps) for val, eps in zip(maxs,epss)])
+        upperb = tuple([int(val+eps) for val, eps in zip(maxs,epss)])
         logger.debug(('Candidate HSV threshold ranges found (not yet '
                       'accepted). Lower: {} Upper: {}').format(lowerb,upperb))
 
@@ -204,9 +222,6 @@ def calculateColorAndTextureFeatures(image):
     ## Step 1: Pixel-level COLOR features extraction
     # convert color space to CIE L*a*b
     image_lab = cv.cvtColor(image,cv.COLOR_BGR2Lab)
-    #image_lab = cv.cvtColor(image,cv.COLOR_BGR2HSV)
-    #image_lab = image
-    #TODO: check what color space to use
 
     # convert dtype to float to avoid overflow during computations
     image_lab_f = image_lab.astype(float)
@@ -248,10 +263,10 @@ def calculateColorAndTextureFeatures(image):
         #np.linspace(1,np.pi,10),
         #np.linspace(0,np.pi/2,2),
         np.linspace(0,np.pi,4),
-        (15,15),
+        (9,9),
         #None,
-        np.pi*3)
-        #np.pi*0.75)
+        #np.pi)
+        np.pi*0.95)
 
     # apply Gabor filter
     filtered_images = np.zeros((image_y.shape[0],image_y.shape[1],len(filters)))
@@ -289,7 +304,6 @@ def calculateColorAndTextureFeatures(image):
         filter_to_show = filter_to_show.astype(np.uint8)
         cv.imshow(f'filter_{i}',filter_to_show)
 
-
     return CF, TF
 
 
@@ -305,8 +319,8 @@ def generateGaborFilters(lambd_iter,theta_iter,ksize,sigma):
     return filters
 
 
-def PCA(data, correlation = False, sort = True):
-    """ Applies Principal Component Analysis to the data
+def PCA(data, correlation=False, sort=True):
+    """ Applies Principal Component Analysis to the data.
 
     Parameters
     ----------        
@@ -415,22 +429,17 @@ def findBestFitPlane(points, equation=False):
 
 
 def separateDepthPlanes(frame):
-    h, w = frame.shape[:2]
-
     # plane fitting method with PCA
-
-    r = cv.selectROI(frame)
-    roi = frame[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-    h_, w_ = roi.shape[:2]
+    h, w = frame.shape[:2]
     cloud_filtered = []
-    lower_percentile = np.percentile(roi,0.5)
-    upper_percentile = np.percentile(roi,99.5)
-    for x in range(h_):
-        for y in range(w_):
-            if roi[x,y] != 0 \
-            and roi[x,y] > lower_percentile \
-            and roi[x,y] < upper_percentile:
-                cloud_filtered.append([x+r[1],y+r[0],roi[x,y]*1000])
+    lower_percentile = np.percentile(frame,0.5)
+    upper_percentile = np.percentile(frame,99.5)
+    for x in range(h):
+        for y in range(w):
+            if frame[x,y] != 0 \
+            and frame[x,y] > lower_percentile \
+            and frame[x,y] < upper_percentile:
+                cloud_filtered.append([x,y,frame[x,y]*1000])
                 
     cloud = [[x,y,frame[x,y]*1000] for x in range(h) for y in range(w)]
     #a,b,c,d = findBestFitPlane(cloud,True)
