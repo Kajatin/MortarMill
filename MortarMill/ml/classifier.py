@@ -7,6 +7,7 @@ import numpy as np
 from sklearn import svm, naive_bayes, preprocessing
 
 from . import dataset
+#import dataset
 import vision
 
 logger = logging.getLogger(__name__)
@@ -14,14 +15,14 @@ logger = logging.getLogger(__name__)
 
 def trainSvmClassifier(path, unsupervised=True):
     # load the sample images and create the dataset
-    data = ml.dataset.loadDatasetPath(path)
+    data = dataset.loadDatasetPath(path)
     # check if the dataset could be created
     if data is None:
         logger.error('Cannot train SVM since the dataset could not be created.')
         return None
 
     # create the training data from the given samples
-    X, y = ml.dataset.createTrainingData(data, unsupervised)
+    X, y = dataset.createTrainingData(data, unsupervised)
     # scale the training data to normal distribution
     scaler = preprocessing.StandardScaler().fit(X)
     X = scaler.transform(X)
@@ -31,7 +32,6 @@ def trainSvmClassifier(path, unsupervised=True):
     # train an SVM
     clf = svm.SVC(C=1)
     clf.fit(X, y)
-    print(clf.n_support_)
 
     return clf, scaler
 
@@ -62,7 +62,7 @@ def trainBayesClassifier(arg):
     
     else:
         # load the sample images and create the dataset
-        data = ml.dataset.loadDatasetPath(arg)
+        data = dataset.loadDatasetPath(arg)
         # check if the dataset could be created
         if data is None:
             logger.error(('Cannot train Bayes classifier since the dataset could'
@@ -70,7 +70,7 @@ def trainBayesClassifier(arg):
             return None
 
         # create the training data from the given samples
-        X, y = ml.dataset.createHsvTrainingData(data)
+        X, y = dataset.createHsvTrainingData(data)
 
     scaler = preprocessing.StandardScaler().fit(X)
     X = scaler.transform(X)
@@ -92,7 +92,7 @@ def saveClassifier(clf, file, path='models/'):
         a classifier or not. Any object provided will be saved as a pickle file.
     file: string
         Name of the pickle file (with `.pickle` file extension).
-    path: string
+    path: string (default: 'models/')
         String that specifies the path to the pickle file.
 
     Returns
@@ -135,7 +135,7 @@ def loadClassifier(file, path='models/'):
     Returns
     -------
     ret: bool
-        Returns the loaded classifier nominally. Otherwise returns None.
+        Returns the loaded classifier normally. Otherwise returns None.
     """
 
     if file is None:
@@ -197,17 +197,17 @@ if __name__ == '__main__':
 
     if clf is None:
         # otherwise train a new SVM classifier
-        #clf, scaler = trainSvmClassifier('samples/train/', False)
+        clf, scaler = trainSvmClassifier('samples/train/', False)
         #clf = trainSvmClassifier(['samples/RAW/brick_zoom_5.jpg'])
         #clf = trainSvmClassifier(['samples/RAW/brick_5.jpg'])
         #clf = trainSvmClassifier(['samples/flower2.jpg'])
-        clf, scaler = trainBayesClassifier('samples/train/')
+        #clf, scaler = trainBayesClassifier('samples/train/')
         # and save it
-        #saveClassifier([clf,scaler], 'svm_rgb.pickle')
+        saveClassifier([clf,scaler], 'svm_hsv.pickle')
         #saveClassifier([clf,scaler], 'bayes_clf.pickle')
 
     # test the classifier on an image
-    image = ml.dataset.getRandomTestImage()
+    image = dataset.getRandomTestImage()
     #predictions = clf.predict(scaler.transform(image.reshape(-1,3)))
     predictions = clf.predict(scaler.transform(cv.cvtColor(image, cv.COLOR_BGR2HSV).reshape(-1,3)))
     #CF, TF = vision.imgproc.calculateColorAndTextureFeatures(image.copy())
@@ -231,7 +231,7 @@ if __name__ == '__main__':
     #clf3 = loadClassifier('svm_rgb.pickle')
 
     ## test the classifier on an image
-    #image = ml.dataset.getRandomTestImage()
+    #image = dataset.getRandomTestImage()
 
     #predictions2 = clf2.predict(cv.cvtColor(image, cv.COLOR_BGR2HSV).reshape(-1,3))
     #predictions3 = clf3.predict(image.reshape(-1,3))
