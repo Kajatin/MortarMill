@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>45f23774-c5ff-4a05-8343-b74806015a3d</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>ml\classifier.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -15,6 +15,9 @@
     <TestFramework>unittest</TestFramework>
     <UnitTestPattern>test*.py</UnitTestPattern>
     <UnitTestRootDirectory>.</UnitTestRootDirectory>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -25,9 +28,6 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="brick.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="confighandler.py">
       <SubType>Code</SubType>
     </Compile>
@@ -40,9 +40,30 @@
     <Compile Include="main_temp.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="ml\classifier.py" />
-    <Compile Include="ml\dataset.py" />
-    <Compile Include="ml\__init__.py" />
+    <Compile Include="ml\classifier.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\dataset.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\train.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\unet\unet.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\unet\unet_parts.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\unet\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="segmenter.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="vision\device.py">
       <SubType>Code</SubType>
     </Compile>
@@ -65,9 +86,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="main.py" />
-    <Compile Include="path_finder.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="junk\temporary.py">
       <SubType>Code</SubType>
     </Compile>
@@ -90,7 +108,7 @@
   <ItemGroup>
     <Folder Include="junk\" />
     <Folder Include="ml\" />
-    <Folder Include="ml\__pycache__\" />
+    <Folder Include="ml\unet\" />
     <Folder Include="unittests\" />
     <Folder Include="vision\" />
   </ItemGroup>
@@ -107,10 +125,6 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="config.ini" />
-    <Content Include="ml\__pycache__\classifier.cpython-37.pyc" />
-    <Content Include="ml\__pycache__\dataset.cpython-37.pyc" />
-    <Content Include="ml\__pycache__\__init__.cpython-37.pyc" />
-    <Content Include="requirements.txt" />
     <Content Include="vision_codes_rs.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

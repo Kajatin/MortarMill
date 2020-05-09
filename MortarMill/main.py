@@ -23,7 +23,7 @@ import numpy as np
 import pyrealsense2 as rs
 
 import vision
-from path_finder import PathFinder
+from segmenter import Segmenter
 
 
 if __name__ == '__main__':
@@ -31,7 +31,7 @@ if __name__ == '__main__':
     devices = rs.context().devices
     logger.info('Found {} device(s).'.format(devices.size()))
     
-    path_finder = PathFinder(ch.config['PATHFINDER'])
+    segmenter = Segmenter(ch.config['PATHFINDER'])
 
     # if no device is connected, use an image input instead for now
     if devices.size() <= 0:
@@ -41,7 +41,11 @@ if __name__ == '__main__':
 
         frames = {'colour':image,'depth':np.zeros(image.shape[:2])}
 
-        path_finder(frames)
+        #ret = vision.imgproc.calibrateHsvThresholds(frames['colour'],False)
+        #print(ret)
+        #segmenter.lowerb, segmenter.upperb = ret
+
+        segmenter(frames)
 
         cv.waitKey(0)
         exit(0)
@@ -63,14 +67,17 @@ if __name__ == '__main__':
         camera.showFrames()
 
         # process the frames and show the final mask
-        #path_finder(frames)
+        segmenter(frames)
 
         key = cv.waitKey(1)
         if key == 27:
             camera.stopStreaming()
             break
         elif key == ord('s'):
-            path_finder(frames)
+            segmenter(frames)
         elif key == ord('c'):
             ret = vision.imgproc.calibrateHsvThresholds(frames['colour'],False)
             print(ret)
+            segmenter.lowerb, segmenter.upperb = ret
+        elif key == ord('i'):
+            cv.imwrite('image.png',frames['colour'])
