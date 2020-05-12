@@ -4,101 +4,81 @@ import logging
 
 import cv2 as cv
 import numpy as np
-from sklearn import svm, naive_bayes, preprocessing
+from sklearn import preprocessing
+from sklearn.model_selection import train_test_split
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.svm import SVC
+from sklearn.gaussian_process.kernels import RBF
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
+from sklearn.naive_bayes import GaussianNB
+from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
 
-from . import dataset
-#import dataset
+#from . import dataset
+import dataset
 import vision
+
 
 logger = logging.getLogger(__name__)
 
 
-def trainSvmClassifier(path, unsupervised=True):
+def trainClassifiers(clfs, names, path):
+    """ Trains the provided scikit classifiers `clfs`.
+
+    Parameters
+    ----------
+    clf: array
+        Array of scikit classifiers to be trained.
+    names: array
+        Array of the names of the scikit classifiers.
+    path: string, array
+        String that specifies the path to the training data. If an array, it should
+        be an array of strings, where each string specifies the path to the training
+        file.
+    """
+
     # load the sample images and create the dataset
     data = dataset.loadDatasetPath(path)
     # check if the dataset could be created
     if data is None:
-        logger.error('Cannot train SVM since the dataset could not be created.')
+        logger.error('Cannot train classifier since the dataset could not be created.')
         return None
 
     # create the training data from the given samples
-    X, y = dataset.createTrainingData(data, unsupervised)
+    X, y = dataset.createTrainingData(data, 0.05, mode='labelled', feature='hsv')
     # scale the training data to normal distribution
     scaler = preprocessing.StandardScaler().fit(X)
     X = scaler.transform(X)
-
-    print('Training data size: {}'.format(X.shape[0]))
+    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
+    logger.info(('Created dataset to train classifier on. Train size: {}, test '
+                 'size: {}.').format(X_train.shape[0],X_test.shape[0]))
     
-    # train an SVM
-    clf = svm.SVC(C=1)
-    clf.fit(X, y)
-
-    return clf, scaler
-
-
-def trainBayesClassifier(arg):
-    if isinstance(arg, np.ndarray):
-        # convert to HSV
-        frame_hsv = cv.cvtColor(arg,cv.COLOR_BGR2HSV)
-        
-        # manually select ROI of brick to generate training data
-        r = cv.selectROI('Select brick area',arg)
-        cv.destroyWindow('Select brick area')
-        # crop image
-        frame_cropped = frame_hsv[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-        brick = frame_cropped.reshape(-1,3)
-        brick_y = np.ones(brick.shape[0])
-
-        # manually select ROI of mortar to generate training data
-        r = cv.selectROI('Select mortar area',arg)
-        cv.destroyWindow('Select mortar area')
-        # crop image
-        frame_cropped = frame_hsv[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-        mortar = frame_cropped.reshape(-1,3)
-        mortar_y = np.zeros(mortar.shape[0])
-
-        X = np.vstack([brick,mortar])
-        y = np.hstack([brick_y,mortar_y])
-    
-    else:
-        # load the sample images and create the dataset
-        data = dataset.loadDatasetPath(arg)
-        # check if the dataset could be created
-        if data is None:
-            logger.error(('Cannot train Bayes classifier since the dataset could'
-                          ' not be created.'))
-            return None
-
-        # create the training data from the given samples
-        X, y = dataset.createHsvTrainingData(data)
-
-    scaler = preprocessing.StandardScaler().fit(X)
-    X = scaler.transform(X)
-
-    # train Bayes classifier
-    clf = naive_bayes.GaussianNB()
-    clf.fit(X, y)
-
-    return clf, scaler
+    # loop over the classifiers and train each of them
+    for name, clf in zip(names, clfs):
+        logger.info('Training {} classifier.'.format(name))
+        # train the classifier
+        clf.fit(X_train, y_train)
+        # test clf
+        score = clf.score(X_test, y_test)
+        logger.info('Classifier trained with score: {}.'.format(score))
+        # save the trained classifier
+        saveClassifier([clf,scaler], f'{name}.pickle')
 
 
 def saveClassifier(clf, file, path='models/'):
-    """ Saves a classifier as a pickle file to the given path and file name.
+    """ Saves a classifier and its scaler as a pickle file to the given path and
+    file name.
 
     Parameters
     ----------
-    clf: object
-        Classifier to be saved. There is no check as to whether `clf` is actually
-        a classifier or not. Any object provided will be saved as a pickle file.
+    clf: array
+        Array that contains the classifier and the scaler to be saved. There is
+        no check as to whether `clf` is actually a classifier or not. Any object
+        provided will be saved as a pickle file.
     file: string
         Name of the pickle file (with `.pickle` file extension).
     path: string (default: 'models/')
         String that specifies the path to the pickle file.
-
-    Returns
-    -------
-    ret: bool
-        Returns the loaded classifier nominally. Otherwise returns False.
     """
 
     assert isinstance(file, str)
@@ -134,8 +114,9 @@ def loadClassifier(file, path='models/'):
 
     Returns
     -------
-    ret: bool
-        Returns the loaded classifier normally. Otherwise returns None.
+    ret: array
+        Returns the loaded classifier (and scaler) as an array normally.
+        Otherwise returns None.
     """
 
     if file is None:
@@ -150,102 +131,33 @@ def loadClassifier(file, path='models/'):
     return None
 
 
-def assignLabelsUnsupervised(image, features, features_t=None, ratio=0.05):
-    #TODO: remove image input, not needed
-
-    if features_t is None:
-        features_t = features
-
-    # fuzzy c-means
-    # fit the fuzzy-c-means
-    fcm = vision.FCM(n_clusters=2,m=1.3,max_iter=1500,error=1e-7,random_state=np.random.randint(10000))
-    fcm.fit(features)
-
-    # outputs
-    fcm_centers = fcm.centers
-    fcm_labels  = fcm.u.argmax(axis=1)
-    unique, counts = np.unique(fcm_labels, return_counts=True)
-    print(fcm_centers)
-    print(unique, counts)
-
-    fcm_labels = np.ones((features.shape[0],)) * 0.5
-    training = {}
-    keys = unique
-    for i in unique:
-        args = fcm.u.argpartition(-int(counts[i]*ratio),axis=0)[-int(counts[i]*ratio):]
-        fcm_labels[args[:,i]] = i
-        training[keys[i]] = features_t[args[:,i],:]
-
-    fcm_labels = fcm_labels.reshape(image.shape[:2])
-    fcm_labels = cv.normalize(fcm_labels, None, 0, 255, cv.NORM_MINMAX)
-    fcm_labels = fcm_labels.astype(np.uint8)
-    cv.imshow('fcm_labels',fcm_labels)
-
-    fcm_labels  = fcm.u.argmax(axis=1)
-    fcm_labels = fcm_labels.reshape(image.shape[:2])
-    fcm_labels = cv.normalize(fcm_labels, None, 0, 255, cv.NORM_MINMAX)
-    fcm_labels = fcm_labels.astype(np.uint8)
-    cv.imshow('fcm_labels_orig',fcm_labels)
-
-    return training
-
-
 if __name__ == '__main__':
+    names = ['knn', 'linear_svm', 'rbf_svm', 'decision_tree', 'random_forest',
+             'adaboost', 'naive_bayes', 'qda']
+
+    classifiers = [
+        KNeighborsClassifier(3),
+        SVC(kernel="linear", C=0.025),
+        SVC(),
+        DecisionTreeClassifier(max_depth=5),
+        RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1),
+        AdaBoostClassifier(),
+        GaussianNB(),
+        QuadraticDiscriminantAnalysis()]
+
+
+    # train the classifiers
+    trainClassifiers(classifiers, names, 'samples/train/')
+
     # load the SVM classifier if it exists
-    #clf = loadClassifier('bayes_clf.pickle')
-    clf = None
-
-    if clf is None:
-        # otherwise train a new SVM classifier
-        clf, scaler = trainSvmClassifier('samples/train/', False)
-        #clf = trainSvmClassifier(['samples/RAW/brick_zoom_5.jpg'])
-        #clf = trainSvmClassifier(['samples/RAW/brick_5.jpg'])
-        #clf = trainSvmClassifier(['samples/flower2.jpg'])
-        #clf, scaler = trainBayesClassifier('samples/train/')
-        # and save it
-        saveClassifier([clf,scaler], 'svm_hsv.pickle')
-        #saveClassifier([clf,scaler], 'bayes_clf.pickle')
-
+    clf, scaler = loadClassifier('rbf_svm.pickle')
+    
     # test the classifier on an image
     image = dataset.getRandomTestImage()
-    #predictions = clf.predict(scaler.transform(image.reshape(-1,3)))
     predictions = clf.predict(scaler.transform(cv.cvtColor(image, cv.COLOR_BGR2HSV).reshape(-1,3)))
-    #CF, TF = vision.imgproc.calculateColorAndTextureFeatures(image.copy())
-    #features = np.hstack((CF.reshape(-1,3),TF.reshape(-1,1)))
-    #features = CF.reshape(-1,3)
-    #predictions = clf.predict(features)
-
-    predictions = predictions.reshape(image.shape[:2])
-    #predictions = cv.normalize(predictions, None, 0, 255, cv.NORM_MINMAX)
+    predictions = predictions.reshape(image.shape[:2]).astype(np.uint8)
     predictions *= 255
-    predictions = predictions.astype(np.uint8)
     
     cv.imshow('predictions',predictions)
     cv.imshow('original',image)
     key = cv.waitKey(0)
-
-
-
-    ## load the SVM classifier if it exists
-    #clf2 = loadClassifier('svm_hsv.pickle')
-    #clf3 = loadClassifier('svm_rgb.pickle')
-
-    ## test the classifier on an image
-    #image = dataset.getRandomTestImage()
-
-    #predictions2 = clf2.predict(cv.cvtColor(image, cv.COLOR_BGR2HSV).reshape(-1,3))
-    #predictions3 = clf3.predict(image.reshape(-1,3))
-
-    #predictions2 = predictions2.reshape(image.shape[:2])
-    #predictions3 = predictions3.reshape(image.shape[:2])
-
-    #predictions2 *= 255
-    #predictions3 *= 255
-    
-    #predictions2 = predictions2.astype(np.uint8)
-    #predictions3 = predictions3.astype(np.uint8)
-    
-    #cv.imshow('predictions2',predictions2)
-    #cv.imshow('predictions3',predictions3)
-    #cv.imshow('original',image)
-    #key = cv.waitKey(0)

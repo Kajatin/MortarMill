@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>45f23774-c5ff-4a05-8343-b74806015a3d</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>main.py</StartupFile>
+    <StartupFile>ml\classifier.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -31,10 +31,19 @@
     <Compile Include="confighandler.py">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Include="junk\comparison_scikit.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="junk\edge_drawing.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="junk\pb_contour.py">
+    <Compile Include="junk\normalized_cut.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\random_walk.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\region_boundary_based_RAG.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="main_temp.py">
@@ -71,12 +80,6 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="vision\FCM.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="junk\fft.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="junk\histogram_tmp.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="junk\hsv.py">
