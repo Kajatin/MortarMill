@@ -15,6 +15,9 @@
     <TestFramework>unittest</TestFramework>
     <UnitTestPattern>test*.py</UnitTestPattern>
     <UnitTestRootDirectory>.</UnitTestRootDirectory>
+    <IsWindowsApplication>False</IsWindowsApplication>
+    <LaunchProvider>Standard Python launcher</LaunchProvider>
+    <EnableNativeCodeDebugging>False</EnableNativeCodeDebugging>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)' == 'Debug' ">
     <DebugSymbols>true</DebugSymbols>
@@ -25,10 +28,55 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Include="brick.py">
+    <Compile Include="confighandler.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\classifier_results.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\colouranddepth.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\comparison_scikit.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\edge_drawing.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\normalized_cut.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\random_walk.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\region_boundary_based_RAG.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="main_temp.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\classifier.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\dataset.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\train.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\unet\unet.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\unet\unet_parts.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\unet\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="ml\__init__.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="segmenter.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="vision\device.py">
@@ -37,19 +85,7 @@
     <Compile Include="junk\camera_connection.py">
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="common\preprocessing.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="common\__init__.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="common\FCM.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="junk\fft.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="junk\histogram_tmp.py">
+    <Compile Include="vision\FCM.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="junk\hsv.py">
@@ -59,19 +95,7 @@
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="main.py" />
-    <Compile Include="path_finder.py">
-      <SubType>Code</SubType>
-    </Compile>
     <Compile Include="junk\temporary.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="trainer\dataset.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="trainer\classifier.py">
-      <SubType>Code</SubType>
-    </Compile>
-    <Compile Include="trainer\__init__.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="unittests\test_brick.py">
@@ -91,9 +115,9 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="common\" />
     <Folder Include="junk\" />
-    <Folder Include="trainer\" />
+    <Folder Include="ml\" />
+    <Folder Include="ml\unet\" />
     <Folder Include="unittests\" />
     <Folder Include="vision\" />
   </ItemGroup>
@@ -109,7 +133,7 @@
     </Interpreter>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="requirements.txt" />
+    <Content Include="config.ini" />
     <Content Include="vision_codes_rs.txt" />
   </ItemGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\VisualStudio\v$(VisualStudioVersion)\Python Tools\Microsoft.PythonTools.targets" />

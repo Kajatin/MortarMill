@@ -153,4 +153,5 @@ class FCM:
             X = np.expand_dims(X, axis=0)
 
         u = self._predict(X)
-        return np.argmax(u, axis=-1)
+        return u
+        #return np.argmax(u, axis=-1)
