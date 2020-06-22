@@ -142,6 +142,8 @@ def calibrateCameraIntrinsics(camera, number_of_ref=14, save=True, monitored=Tru
             
                 if monitored:
                     # draw and display the corners
+                    if len(frame_calib.shape) == 2:
+                        frame_calib = cv.cvtColor(frame_calib, cv.COLOR_GRAY2BGR)
                     cv.drawChessboardCorners(frame_calib, (9,6), sub_pixel_corners, ret)
                     cv.imshow('Intrinsic calibration', frame_calib)
                 
@@ -156,6 +158,9 @@ def calibrateCameraIntrinsics(camera, number_of_ref=14, save=True, monitored=Tru
                         logger.warning(('Intrinsic calibration process is interrupted'
                                         ' by user. Calibration is incomplete.'))
                         return None
+                    # if `s` is pressed, save the current annotated image
+                    elif ret == ord('s'):
+                        cv.imwrite(f'vision/calibration/device_{camera.serial}/checkerboard_{len(objpoints)+1}_{key}_annotated.png',frame_calib)
 
                 # add the found image corners (2D, 3D) to the arrays
                 objpoints.append(objp)
@@ -174,6 +179,7 @@ def calibrateCameraIntrinsics(camera, number_of_ref=14, save=True, monitored=Tru
         rep_err, mtx, dist, rvecs, tvecs = cv.calibrateCamera(objpoints, imgpoints, gray.shape[::-1], None, None)
         logger.info(('Camera {} stream {} intrinsic parameters are calibrated '
                     'with RMS reprojection error of {}.').format(camera.serial, key, rep_err))
+        print('rep_err',key,rep_err)
 
         # refine the camera matrix
         h, w = frame_calib.shape[:2]
@@ -282,6 +288,67 @@ def calibrateCameraExtrinsics(camera, params, stream='colour'):
     return success, rvec, tvec
 
 
+def test(camera, intrinsics, distortion, rvec, tvec):
+    px = 0
+    py = 0
+
+    px2 = 0
+    py2 = 0
+
+    def mouseCb(event, x, y, flags, param):
+        if event == cv.EVENT_LBUTTONDOWN:
+            nonlocal px
+            nonlocal py
+            px = x
+            py = y
+        elif event == cv.EVENT_RBUTTONDOWN:
+            nonlocal px2
+            nonlocal py2
+            px2 = x
+            py2 = y
+
+    cv.namedWindow('Calibration image with pattern')
+    cv.setMouseCallback('Calibration image with pattern', mouseCb)
+
+    # start gathering frames the camera (these are retrieved in the while loop below)
+    camera.startStreaming()
+
+    rotm, _ = cv.Rodrigues(rvec)
+
+    while 1:
+        # acquire frames from the camera
+        frames = camera.retrieveFrames()
+        #camera.showFrames()
+
+        # select the frame to work with
+        frame_calib = frames['colour'].copy()
+
+        # if no colour image is available continue
+        if frame_calib is None:
+            continue
+
+        # draw a marker at camera centre
+        ppx = int(intrinsics[0,2])
+        ppy = int(intrinsics[1,2])
+        #cv.drawMarker(frame_calib,(ppx, ppy),(0,0,255),cv.MARKER_CROSS,thickness=2)
+        cv.drawMarker(frame_calib,(px, py),(255,0,0),cv.MARKER_CROSS,thickness=2)
+        cv.drawMarker(frame_calib,(px2, py2),(0,255,0),cv.MARKER_CROSS,thickness=2)
+        cv.imshow('Calibration image with pattern', frame_calib)
+        #px=ppx
+        #py=ppy
+
+        key = cv.waitKey(1)
+        if key == 27:
+            break
+        elif key == ord('c'):
+            world = pointsToWorld(frames, intrinsics, distortion, rvec, tvec)
+
+            dist = np.linalg.norm(world[py,px,:]-world[py2,px2,:])
+            print('Distance: {}\n'.format(dist))
+                
+    camera.stopStreaming()
+
+
 def pointsToWorld(frames, intrinsics, distortion, rvec, tvec):
     """ Converts image points to world coordinates """
 
@@ -315,7 +382,33 @@ def main():
     camera = vision.Device(devices[0], ch.config['DEVICE'])
 
     # calibrate the connected camera
-    calibrateCamera(camera)
+    #calibrateCamera(camera)
+    #exit()
+
+
+
+    # load camera calibration parameters
+    cam_params = loadCameraCalibrationParams(943222071836)
+    # returns some useful camera parameters
+    fovx, fovy, f, principal_point, aspect_ratio = cv.calibrationMatrixValues(
+        cam_params['colour']['intrinsics'], (848,480), 2.688, 1.512)
+
+    ret, rvec, tvec = calibrateCameraExtrinsics(camera, cam_params)
+    rvec, tvec = cam_params['colour']['extrinsics']
+    intrinsics = cam_params['colour']['intrinsics']
+    distortion = cam_params['colour']['distortion']
+    params = camera.colour_intrinsics
+    intrinsics = np.array([[params.fx, 0, params.ppx],
+                                  [0, params.fy, params.ppy],
+                                  [0, 0, 1]])
+    distortion = np.array([params.coeffs])
+    test(camera, intrinsics, distortion, rvec, tvec)
+
+    #camera.startStreaming()
+    #while 1:
+    #    frames = camera.retrieveFrames()
+    #    world = pointsToWorld(frames, intrinsics, distortion, rvec, tvec)
+    #camera.stopStreaming()
 
 if __name__ == '__main__':
     main()

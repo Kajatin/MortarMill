@@ -10,7 +10,24 @@ import vision
 
 
 class Device():
-    """description of class"""
+    """ Provides an interface for the D435 device.
+
+    Parameters
+    ----------
+    config: configparser.SectionProxy
+        Configuration file with information about the classifiers to load. If None,
+        the segmenter will not function.
+
+    Attributes
+    ----------
+    serial: string
+        Serial number of the device.
+    
+    Methods
+    -------
+    startStreaming()
+        Starts streaming frames from the device.
+    """
 
     def __init__(self, device, config):
         if type(device) is not rs.pyrealsense2.device:
@@ -71,7 +88,8 @@ class Device():
                     self.config.getint('temporal_persistence_control')))
             self.filters.append(rs.disparity_transform(False))
             if self.config.getboolean('use_hole_filling'):
-                self.filters.append(rs.hole_filling_filter())
+                self.filters.append(rs.hole_filling_filter(
+                    self.config.getint('hole_filling_mode')))
 
         # setup depth alignment setting
         if self.config.getboolean('align_depth'):
@@ -190,7 +208,6 @@ class Device():
         #print(self.depth_image[self.x,self.y])
 
 
-
     def retrieveFrames(self, wait_for_new=True):
         if wait_for_new:
             self.waitForFrames()
@@ -202,10 +219,13 @@ class Device():
     def showFrames(self):
         # apply colormap on depth image (image must be converted to 8-bit per pixel first)
         alpha = 255/np.abs(self.depth_image).max()
-        depth_colormap = cv.applyColorMap(cv.convertScaleAbs(self.depth_image, alpha=alpha), cv.COLORMAP_JET)
-
+        scaled_frame = cv.convertScaleAbs(self.depth_image, alpha=alpha)
+        scaled_frame = cv.equalizeHist(scaled_frame)
+        depth_colormap = cv.applyColorMap(scaled_frame, cv.COLORMAP_JET)
+        print(self.depth_image.shape, depth_colormap.shape)
+        
         # draw a marker at pixel where the distance is shown
-        cv.drawMarker(depth_colormap, (self.y,self.x), (0,0,255), cv.MARKER_CROSS,thickness=2)
+        #cv.drawMarker(depth_colormap, (self.y,self.x), (0,0,255), cv.MARKER_CROSS,thickness=2)
 
         cv.imshow(f'RealSense Color {self.serial}', self.color_image)
         cv.imshow(f'RealSense Depth {self.serial}', depth_colormap)

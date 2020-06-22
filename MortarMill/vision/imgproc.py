@@ -4,7 +4,7 @@ logger = logging.getLogger(__name__)
 import cv2 as cv
 import numpy as np
 from sklearn.cluster import KMeans
-from matplotlib import pyplot as plt
+import matplotlib.pyplot as plt
 
 
 def movingAverage(data, window_size=5):
@@ -126,18 +126,22 @@ def calibrateHsvThresholds(frame, supervised=False):
             i = unique[count.argmax()]
                 
             # DEBUG *******************************************
-            ## find the cluster center corresponding to the bricks
-            #mask = kmeans.labels_.reshape(frame_hsv.shape[0], frame_hsv.shape[1])
-            ## normalize mask to 0-255 range
-            #mask = mask.astype(float)
-            #mask *= 255/mask.max()
-            #mask = mask.astype(np.uint8)
-            ## create binary image where 255 corresponds to brick pixels
-            ##mask = np.where(mask==i, 255, 0)
-            ## refine mask (remove small objects)
-            ##mask = connectedComponentsBasedFilter(mask)
-            ## show mask in debug mode
+            # find the cluster center corresponding to the bricks
+            mask = kmeans.labels_.reshape(frame_hsv.shape[0], frame_hsv.shape[1])
+            # normalize mask to 0-255 range
+            mask = mask.astype(float)
+            mask *= 255/mask.max()
+            mask = np.abs(mask-255)
+            mask = mask.astype(np.uint8)
+            # create binary image where 255 corresponds to brick pixels
+            #mask = np.where(mask==i, 255, 0)
+            # refine mask (remove small objects)
+            #mask = connectedComponentsBasedFilter(mask)
+            # show mask in debug mode
+            #cv.imshow('input',frame)
             #cv.imshow('Auto HSV threshold mask', mask)
+            #cv.imwrite('hsv_colour_kmeans_original.png',frame)
+            #cv.imwrite('hsv_colour_kmeans_clusters.png',mask)
             # DEBUG *******************************************
 
             logger.debug(('Found cluster centers for HSV thresholds: {} . '
@@ -191,31 +195,27 @@ def connectedComponentsBasedFilter(frame):
 
     # connected components
     nb_comp, label, stats, centroids = cv.connectedComponentsWithStats(frame, connectivity=8)
-    min_size = 250
 
-    cc_out = np.zeros((frame.shape))
+    # keep large areas
+    cc_out = np.full_like(frame,0)
+    min_size = 250
     for i in range(1,nb_comp):
         if stats[i, -1] >= min_size:
             cc_out[label == i] = 255
 
     # connected components inverted
-    inverted_image = np.zeros((cc_out.shape),np.uint8)
-    inverted_image[cc_out == 0] = 255
-
+    inverted_image = np.invert(cc_out)
     nb_comp_i, label_i, stats_i, centroids_i = cv.connectedComponentsWithStats(inverted_image, connectivity=8)
-    min_size = 2000
 
-    cc_out_inverted = np.zeros((frame.shape))
+    # keep large areas
+    cc_out_inverted = np.full_like(frame,0)
+    min_size = 2000
     for i in range(1,nb_comp_i):
         if stats_i[i,-1] >= min_size:
             cc_out_inverted[label_i == i] = 255
 
     # final mask
-    final_mask = np.zeros((cc_out_inverted.shape),np.uint8)
-    final_mask[cc_out_inverted == 0] = 255
-    #cv.imshow('final mask', final_mask)
-
-    return final_mask
+    return np.invert(cc_out_inverted)
 
 
 def calculateColorAndTextureFeatures(image):
@@ -281,28 +281,28 @@ def calculateColorAndTextureFeatures(image):
 
 
     ###################
-    # will be removed
-    final_color = cv.normalize(CF, None, 0, 255, cv.NORM_MINMAX)
-    final_color = final_color.astype(np.uint8)
-    #final_color = cv.cvtColor(final_color, cv.COLOR_Lab2BGR)
-    cv.imshow('final_color',final_color)
+    ## will be removed
+    #final_color = cv.normalize(CF, None, 0, 255, cv.NORM_MINMAX)
+    #final_color = final_color.astype(np.uint8)
+    ##final_color = cv.cvtColor(final_color, cv.COLOR_Lab2BGR)
+    #cv.imshow('final_color',final_color)
 
-    final_texture = cv.normalize(TF, None, 0, 255, cv.NORM_MINMAX)
-    final_texture = final_texture.astype(np.uint8)
-    cv.imshow('final_texture',final_texture)
+    #final_texture = cv.normalize(TF, None, 0, 255, cv.NORM_MINMAX)
+    #final_texture = final_texture.astype(np.uint8)
+    #cv.imshow('final_texture',final_texture)
 
-    # visualize filtered images
-    for i in range(filtered_images.shape[2]):
-        filter_to_show = cv.normalize(filtered_images[:,:,i], None, 0, 255, cv.NORM_MINMAX)
-        filter_to_show = filter_to_show.astype(np.uint8)
-        cv.imshow(f'filtered_image_{i}',filter_to_show)
+    ## visualize filtered images
+    #for i in range(filtered_images.shape[2]):
+    #    filter_to_show = cv.normalize(filtered_images[:,:,i], None, 0, 255, cv.NORM_MINMAX)
+    #    filter_to_show = filter_to_show.astype(np.uint8)
+    #    cv.imshow(f'filtered_image_{i}',filter_to_show)
     
-    # visualize filters
-    for i,filter in enumerate(filters):
-        filter_to_show = cv.resize(filter[0],(200,200))
-        filter_to_show = cv.normalize(filter_to_show, None, 0, 255, cv.NORM_MINMAX)
-        filter_to_show = filter_to_show.astype(np.uint8)
-        cv.imshow(f'filter_{i}',filter_to_show)
+    ## visualize filters
+    #for i,filter in enumerate(filters):
+    #    filter_to_show = cv.resize(filter[0],(200,200))
+    #    filter_to_show = cv.normalize(filter_to_show, None, 0, 255, cv.NORM_MINMAX)
+    #    filter_to_show = filter_to_show.astype(np.uint8)
+    #    cv.imshow(f'filter_{i}',filter_to_show)
 
     return CF, TF
 
@@ -350,11 +350,6 @@ def PCA(data, correlation=False, sort=True):
     eigenvector: (M,M) array
         The eigenvectors of the corresponding matrix.
 
-    Notes
-    -----
-    The correlation matrix is a better choice when there are different magnitudes
-    representing the M variables. Use covariance matrix in other cases.
-
     """
 
     mean = np.mean(data, axis=0)
@@ -380,78 +375,47 @@ def PCA(data, correlation=False, sort=True):
     return eigenvalues, eigenvectors
 
 
-def findBestFitPlane(points, equation=False):
-    """ Computes the best fitting plane of the given points
+def separateDepthPlanes(frame):
+    """ Separates the depth map input into two labels based on how well each point
+    fits the best-fit plane. The best-fit plane is found by applying PCA on the
+    point cloud converted input.
 
     Parameters
     ----------        
-    points: array
-        The x,y,z coordinates corresponding to the points from which we want
-        to define the best fitting plane. Expected format:
-            array([
-            [x1,y1,z1],
-            ...,
-            [xn,yn,zn]])
+    frame: array
+        The array containing the depth data. The input is interpreted
+        as a single channel image.
 
-    equation(Optional) : bool
-            Set the oputput plane format:
-                If True return the a,b,c,d coefficients of the plane.
-                If False(Default) return 1 Point and 1 Normal vector.    
     Returns
     -------
-    a, b, c, d : float
-        The coefficients solving the plane equation.
-
-    or
-
-    point, normal: array
-        The plane defined by 1 Point and 1 Normal vector. With format:
-        array([Px,Py,Pz]), array([Nx,Ny,Nz])
-
+    mask: array
+        The mask image array (1 channel, binary). 255 represents brick
+        pixels, 0 for the mortar.
     """
 
-    w, v = PCA(points)
-
-    #: the normal of the plane is the last eigenvector
-    normal = v[:,2]
-
-    #: get a point from the plane
-    point = np.mean(points, axis=0)
-
-
-    if equation:
-        a, b, c = normal
-        d = -(np.dot(normal, point))
-        return a, b, c, d
-
-    else:
-        return point, normal
-
-
-def separateDepthPlanes(frame):
-    # plane fitting method with PCA
-    h, w = frame.shape[:2]
-    cloud_filtered = []
+    # remove 0s, upper and lower 0.5% outliers
     lower_percentile = np.percentile(frame,0.5)
     upper_percentile = np.percentile(frame,99.5)
-    for x in range(h):
-        for y in range(w):
-            if frame[x,y] != 0 \
-            and frame[x,y] > lower_percentile \
-            and frame[x,y] < upper_percentile:
-                cloud_filtered.append([x,y,frame[x,y]*1000])
-                
-    cloud = [[x,y,frame[x,y]*1000] for x in range(h) for y in range(w)]
-    #a,b,c,d = findBestFitPlane(cloud,True)
-    a,b,c,d = findBestFitPlane(cloud_filtered,True)
-    boolean_mask = [(a*x+b*y+c*z+d)<1 for x,y,z in cloud]
-    boolean_mask = np.array(boolean_mask).reshape(h,w)
+    idxs = np.where((frame>lower_percentile) & (frame < upper_percentile) & (frame != 0))
+    cloud_filtered = np.dstack([np.dstack(idxs),frame[idxs]*1000]).squeeze()
+    
+    # plane fitting method with PCA
+    w, v = PCA(cloud_filtered)
+    normal = v[:,2]
+    point = np.mean(cloud_filtered, axis=0)
+    a, b, c = normal
+    d = -(np.dot(normal, point))
+
+    # evaluate how well each point fits the plane
+    y,x = np.meshgrid(np.arange(frame.shape[1]),np.arange(frame.shape[0]))
+    cloud = np.dstack([x.flatten(),y.flatten(),frame.flatten()*1000]).squeeze()
+    boolean_mask = (np.sum(cloud * np.array([a,b,c]), 1) + d) < 1
+    boolean_mask = np.array(boolean_mask).reshape(frame.shape)
     boolean_mask[frame==0] = False
 
-    mask = np.zeros(frame.shape[:2],np.uint8)
+    # create mask
+    mask = np.zeros(frame.shape,np.uint8)
     mask[boolean_mask] = 255
-
-    #cv.imshow('mydepth',mask)
 
     return mask
 
@@ -496,3 +460,66 @@ def undistortFrame(frame, params):
         frame = cv.undistort(frame, camera_matrix, distortion_coeffs, None)
 
     return frame
+
+
+def normalise(frame, mode='hsv'):
+
+    frame_ = np.float64(frame)
+
+    if mode == 'rgb':
+        frame_ = frame / 255.0
+    elif mode == 'hsv':
+        frame_[:,:,0] = frame_[:,:,0] / 179.0
+        frame_[:,:,1:3] = frame_[:,:,1:3] / 255.0
+    elif mode == 'depth':
+        frame_ = frame / 0.246
+    else:
+        return None
+
+    return frame_
+
+
+def skeletonize(mask):
+    from skimage.morphology import skeletonize, medial_axis
+    skeleton1 = skeletonize(np.invert(mask)/255.0)
+    skeleton = medial_axis(np.invert(mask)/255.0)
+    cv.imshow('inverse mask',np.invert(mask))
+    cv.imshow('Skeleton1', (skeleton1*255).astype(np.uint8))
+    cv.imshow('Skeleton', (skeleton*255).astype(np.uint8))
+
+    data = np.invert(mask)/255.0
+    # Compute the medial axis (skeleton) and the distance transform
+    skel, distance = medial_axis(data, return_distance=True)
+    # Distance to the background for pixels of the skeleton
+    dist_on_skel = distance * skel
+    plt.figure(figsize=(8, 4))
+    plt.subplot(121)
+    plt.imshow(data, cmap=plt.cm.gray, interpolation='nearest')
+    plt.axis('off')
+    plt.subplot(122)
+    plt.imshow(dist_on_skel, cmap=plt.cm.Spectral, interpolation='nearest')
+    plt.contour(data, [0.5], colors='w')
+    plt.axis('off')
+    plt.subplots_adjust(hspace=0.01, wspace=0.01, top=1, bottom=0, left=0, right=1)
+    plt.show()
+
+
+def visualizeFinalSegmentation(frame, mask):
+    # detect bricks with final mask
+    frame_ = frame.copy()
+    nb_comp_f, label_f, stats_f, centroids_f = cv.connectedComponentsWithStats(mask, connectivity=8)
+    for center in centroids_f[1:]:
+        cv.drawMarker(frame_, tuple(np.uint(center)), (255,0,0), cv.MARKER_CROSS, thickness=2)
+
+    for stat in np.uint(stats_f[1:]):
+        cv.rectangle(frame_,
+                    (stat[0],stat[1]),(stat[0]+stat[2],stat[1]+stat[3]),
+                    (0,0,255), 2)
+
+    # detect contours
+    cnts, hrcy = cv.findContours(mask, cv.RETR_EXTERNAL, cv.CHAIN_APPROX_SIMPLE)
+    cv.drawContours(frame_, cnts, -1, (0,255,0),2)
+    
+    # show brick detection results
+    masked_orig = cv.bitwise_and(frame,frame,mask=np.invert(mask))
+    cv.imshow('Detected bricks',np.vstack((frame_,masked_orig)))
