@@ -1,6 +1,7 @@
 import os
 import pickle
 import logging
+from time import perf_counter
 
 import cv2 as cv
 import numpy as np
@@ -13,9 +14,10 @@ from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, AdaBoostClassifier
 from sklearn.naive_bayes import GaussianNB
 from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+import matplotlib.pyplot as plt
 
-#from . import dataset
-import dataset
+from . import dataset
+#import dataset
 import vision
 
 
@@ -45,10 +47,10 @@ def trainClassifiers(clfs, names, path):
         return None
 
     # create the training data from the given samples
-    X, y = dataset.createTrainingData(data, 0.05, mode='labelled', feature='hsv')
+    X, y = dataset.createTrainingData(data, 0.005, mode='labelled', feature='rgb')
     # scale the training data to normal distribution
-    scaler = preprocessing.StandardScaler().fit(X)
-    X = scaler.transform(X)
+    #scaler = preprocessing.StandardScaler().fit(X)
+    #X = scaler.transform(X)
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2)
     logger.info(('Created dataset to train classifier on. Train size: {}, test '
                  'size: {}.').format(X_train.shape[0],X_test.shape[0]))
@@ -56,13 +58,15 @@ def trainClassifiers(clfs, names, path):
     # loop over the classifiers and train each of them
     for name, clf in zip(names, clfs):
         logger.info('Training {} classifier.'.format(name))
+        print('Training {} classifier.'.format(name))
         # train the classifier
         clf.fit(X_train, y_train)
         # test clf
         score = clf.score(X_test, y_test)
         logger.info('Classifier trained with score: {}.'.format(score))
+        print('Classifier trained with score: {}.'.format(score))
         # save the trained classifier
-        saveClassifier([clf,scaler], f'{name}.pickle')
+        saveClassifier(clf, f'{name}.pickle')
 
 
 def saveClassifier(clf, file, path='models/'):
@@ -139,25 +143,29 @@ if __name__ == '__main__':
         KNeighborsClassifier(3),
         SVC(kernel="linear", C=0.025),
         SVC(),
-        DecisionTreeClassifier(max_depth=5),
-        RandomForestClassifier(max_depth=5, n_estimators=10, max_features=1),
+        DecisionTreeClassifier(max_depth=10),
+        RandomForestClassifier(max_depth=10, n_estimators=10),
         AdaBoostClassifier(),
         GaussianNB(),
         QuadraticDiscriminantAnalysis()]
 
-
     # train the classifiers
-    trainClassifiers(classifiers, names, 'samples/train/')
+    #trainClassifiers(classifiers, names, 'samples/dataset/')
+    #exit(0)
 
-    # load the SVM classifier if it exists
-    clf, scaler = loadClassifier('rbf_svm.pickle')
-    
-    # test the classifier on an image
-    image = dataset.getRandomTestImage()
-    predictions = clf.predict(scaler.transform(cv.cvtColor(image, cv.COLOR_BGR2HSV).reshape(-1,3)))
-    predictions = predictions.reshape(image.shape[:2]).astype(np.uint8)
-    predictions *= 255
-    
-    cv.imshow('predictions',predictions)
-    cv.imshow('original',image)
-    key = cv.waitKey(0)
+
+    data = dataset.loadDatasetPath('samples/dataset/test/')
+    X, y = dataset.createTrainingData(data, 0.1, mode='labelled', feature='rgb')
+    from sklearn.metrics import classification_report, confusion_matrix
+    for i, name in enumerate(names):
+        print(name,end='  ')
+        clf = loadClassifier(f'{name}.pickle')
+        start = perf_counter()
+        y_pred = clf.predict(X)
+        end = perf_counter()
+        print(end-start)
+
+        print(classification_report(y, y_pred, target_names=['mortar','brick']))
+        print(confusion_matrix(y, y_pred))
+
+    input('l')

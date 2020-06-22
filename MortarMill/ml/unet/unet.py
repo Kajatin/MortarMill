@@ -33,7 +33,7 @@ class UNet(nn.Module):
         [batch_size, n_classes, height, width].
     """
 
-    def __init__(self, n_channels=3, n_classes=1):
+    def __init__(self, n_channels=4, n_classes=1):
         super(UNet, self).__init__()
 
         self.n_channels = n_channels
@@ -82,7 +82,7 @@ class UNet(nn.Module):
 
         return logits
 
-    def predict(self, frame, device=None, scale=0.5, out_threshold=0.5):
+    def predict(self, frame, depth, device=None, scale=1, out_threshold=0.5):
         """ Runs the input argument `frame` through the model doing inference.
 
         Parameters
@@ -110,7 +110,7 @@ class UNet(nn.Module):
 
         self.eval()
 
-        img = torch.from_numpy(BrickDataset.preprocess(frame, scale))
+        img = torch.from_numpy(BrickDataset.preprocess(frame, depth, scale))
         img = img.unsqueeze(0)
         img = img.to(device=device, dtype=torch.float32)
 
@@ -131,4 +131,3 @@ class UNet(nn.Module):
             full_mask = probs.squeeze().cpu().numpy()
 
         return ((full_mask > out_threshold) * 255).astype(np.uint8)
-        #return (full_mask * 255).astype(np.uint8)

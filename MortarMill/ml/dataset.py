@@ -138,74 +138,103 @@ def createTrainingData(dataset, ratio=0.05, mode='labelled', feature='rgb'):
     y = []
 
     for path in dataset:
-        image = cv.imread(path)
-        #image = cv.resize(image, (848, 480))
-        #image = cv.GaussianBlur(image, (15,15), 1)
+        if path.split('.')[1] == 'png' and 'colour' in path:
+            image = cv.imread(path)
+            #image = cv.resize(image, (848, 480))
+            #image = cv.GaussianBlur(image, (15,15), 1)
 
-        if feature == 'rgb':
-            features = image.reshape(-1,3)
-        elif feature == 'hsv':
-            features = cv.cvtColor(image, cv.COLOR_BGR2HSV).reshape(-1,3)
-        elif feature == 'colour-texture':
-            CF, TF = vision.imgproc.calculateColorAndTextureFeatures(image.copy())
-            features = np.hstack((CF.reshape(-1,3),TF.reshape(-1,1)))
-        else:
-            logger.error(('The provided `feature` is not supported ({}). It should '
-                    'either be \'rgb\', \'hsv\', or \'colour-texture\'.')\
-                        .format(feature))
+            if feature == 'rgb':
+                features = image.reshape(-1,3)
+                features = features/255
+            elif feature == 'hsv':
+                features = np.float64(cv.cvtColor(image, cv.COLOR_BGR2HSV))
+                features[:,:,1:3] = features[:,:,1:3]/255
+                features[:,:,0] = features[:,:,0]/179
+                features = features.reshape(-1,3)
+            elif feature == 'colour-texture':
+                CF, TF = vision.imgproc.calculateColorAndTextureFeatures(image.copy())
+                features = np.hstack((CF.reshape(-1,3),TF.reshape(-1,1)))
+            else:
+                logger.error(('The provided `feature` is not supported ({}). It should '
+                        'either be \'rgb\', \'hsv\', or \'colour-texture\'.')\
+                            .format(feature))
 
-        if mode == 'labelled':
-            # select a subset of the data used for training
-            selection_features_ = features[np.random.choice(features.shape[0],
-                                                            int(features.shape[0]*ratio),
-                                                            replace=False), :]
+            # add the 4th dimension - depth
+            depth = np.load(path.replace('colour','depth').replace('png','npy'))
+            depth = depth/0.246
+            features = np.hstack([features,depth.reshape(-1,1)])
 
-            # determine the label from the file name 0: mortar, 1: brick
-            label = int(path.split('_')[-1].split('.')[0])
+            if mode == 'labelled':
+                ## select a subset of the data used for training
+                #selection_features_ = features[np.random.choice(features.shape[0],
+                #                                                int(features.shape[0]*ratio),
+                #                                                replace=False), :]
 
-            X.append(selection_features_)
-            y.append(np.repeat(label,selection_features_.shape[0]))
+                ## determine the label from the file name 0: mortar, 1: brick
+                #label = int(path.split('_')[-1].split('.')[0])
 
-        elif mode == 'manual':
-            # manually select ROI of brick to generate training data
-            r = cv.selectROI('Select brick area',image)
-            cv.destroyWindow('Select brick area')
-            # crop feature
-            features_ = features.reshape(image.shape)
-            frame_cropped = features_[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-            brick = frame_cropped.reshape(-1,3)
-            brick_y = np.ones(brick.shape[0])
+                #X.append(selection_features_)
+                #y.append(np.repeat(label,selection_features_.shape[0]))
 
-            # manually select ROI of mortar to generate training data
-            r = cv.selectROI('Select mortar area',image)
-            cv.destroyWindow('Select mortar area')
-            # crop image
-            frame_cropped = features_[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
-            mortar = frame_cropped.reshape(-1,3)
-            mortar_y = np.zeros(mortar.shape[0])
 
-            X.append(np.vstack([brick,mortar]))
-            y.append(np.hstack([brick_y,mortar_y]))
+                # read GT mask
+                mask = cv.imread(path.replace('colour','gt_mask'),0).reshape(-1,1)
+                mask = np.uint8(mask/255)
+                
+                # select a subset of the data used for training
+                #selection_features_ = features[np.random.choice(features.shape[0],
+                                                                #int(features.shape[0]*ratio),
+                                                                #replace=False), :]
 
-        elif mode == 'unsupervised':
-            #TODO: implement case where first all CF,TF features are calculated for all images before the FCM is called
-            training = assignLabelsUnsupervised(image, features, ratio)
+                #X.append(selection_features_)
+                #y.append(np.repeat(label,selection_features_.shape[0]))
+                X.append(features)
+                y.append(mask.flatten())
+
+            elif mode == 'manual':
+                # manually select ROI of brick to generate training data
+                r = cv.selectROI('Select brick area',image)
+                cv.destroyWindow('Select brick area')
+                # crop feature
+                features_ = features.reshape(image.shape)
+                frame_cropped = features_[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
+                brick = frame_cropped.reshape(-1,3)
+                brick_y = np.ones(brick.shape[0])
+
+                # manually select ROI of mortar to generate training data
+                r = cv.selectROI('Select mortar area',image)
+                cv.destroyWindow('Select mortar area')
+                # crop image
+                frame_cropped = features_[int(r[1]):int(r[1]+r[3]), int(r[0]):int(r[0]+r[2])]
+                mortar = frame_cropped.reshape(-1,3)
+                mortar_y = np.zeros(mortar.shape[0])
+
+                X.append(np.vstack([brick,mortar]))
+                y.append(np.hstack([brick_y,mortar_y]))
+
+            elif mode == 'unsupervised':
+                #TODO: implement case where first all CF,TF features are calculated for all images before the FCM is called
+                training = assignLabelsUnsupervised(image, features, ratio)
     
-            X.append(np.vstack([training[0],training[1]]))
-            y.append(np.hstack([np.repeat(0,len(training[0])),np.repeat(1,len(training[1]))]))
+                X.append(np.vstack([training[0],training[1]]))
+                y.append(np.hstack([np.repeat(0,len(training[0])),np.repeat(1,len(training[1]))]))
 
-        else:
-            logger.error(('The provided `mode` is not supported ({}). It should '
-                          'either be \'manual\', \'labelled\', or \'unsupervised\'.')\
-                              .format(mode))
-            return None
+            else:
+                logger.error(('The provided `mode` is not supported ({}). It should '
+                              'either be \'manual\', \'labelled\', or \'unsupervised\'.')\
+                                  .format(mode))
+                return None
 
-    return np.vstack(X), np.hstack(y)
+    X, y = np.vstack(X), np.hstack(y)
+    selection = np.random.choice(X.shape[0], int(X.shape[0]*ratio), replace=False)
+    X = X[selection, :]
+    y = y[selection]
+    return X, y
 
 
 #TODO: code this function properly (getRandomTestImage())
 def getRandomTestImage():
-    image = cv.imread('samples/RAW/brick_zoom_3.jpg')
+    image = cv.imread('samples/RAW/brick_zoom_5.jpg')
     #image = cv.imread('samples/flower2.jpg')
     return cv.resize(image, (848, 480))
 
@@ -218,28 +247,31 @@ class BrickDataset(Dataset):
         self.masks_dir = masks_dir
         self.scale = scale
 
-        self.ids = loadDatasetPath(imgs_dir)
+        self.ids = [f for f in loadDatasetPath(imgs_dir) if 'colour' in f]
         logging.info(f'Creating dataset with {len(self.ids)} examples')
 
     def __len__(self):
         return len(self.ids)
 
     @classmethod
-    def preprocess(cls, pil_img, scale):
-        w, h = pil_img.size
-        newW, newH = int(scale * w), int(scale * h)
-        assert newW > 0 and newH > 0, 'Scale is too small'
-        pil_img = pil_img.resize((newW, newH))
+    def preprocess(cls, pil_img, pil_dpt, scale):
+        #w, h = pil_img.size
+        #newW, newH = int(scale * w), int(scale * h)
+        #assert newW > 0 and newH > 0, 'Scale is too small'
+        #pil_img = pil_img.resize((newW, newH))
 
         img_nd = np.array(pil_img)
 
         if len(img_nd.shape) == 2:
             img_nd = np.expand_dims(img_nd, axis=2)
+            img_nd = img_nd / 255.0
+        else:
+            img_nd = img_nd / 255.0
+            pil_dpt = np.array(pil_dpt) / 0.246
+            img_nd = np.dstack([img_nd,pil_dpt])
 
         # HWC to CHW
         img_trans = img_nd.transpose((2, 0, 1))
-        if img_trans.max() > 1:
-            img_trans = img_trans / 255
 
         return img_trans
 
@@ -248,16 +280,18 @@ class BrickDataset(Dataset):
             idx = idx.tolist()
 
         img_file = self.ids[idx]
-        mask_file = self.ids[idx].replace(self.imgs_dir,self.masks_dir)
+        dpt_file = self.ids[idx].replace('colour','depth').replace('png','npy')
+        mask_file = self.ids[idx].replace(self.imgs_dir,self.masks_dir).replace('colour','gt_mask')
 
         img = Image.open(img_file)
+        dpt = np.load(dpt_file)
         mask = Image.open(mask_file)
 
         assert img.size == mask.size, \
             f'Image and mask {idx} should be the same size, but are {img.size} and {mask.size}'
 
-        img = self.preprocess(img, self.scale)
-        mask = self.preprocess(mask, self.scale)
+        img = self.preprocess(img, dpt, self.scale)
+        mask = self.preprocess(mask, None, self.scale)
         
         return {'image': torch.from_numpy(img), 'mask': torch.from_numpy(mask)}
 
@@ -312,5 +346,51 @@ def generateUnetDataset():
                 image_cropped.save(f'samples/images/image_{count}.png')
                 mask_cropped.save(f'samples/masks/image_{count}.png')
                 count += 1
+        except FileNotFoundError:
+            pass
+
+
+def generateDataset():
+    count = 0
+    dataset = loadDatasetPath('samples/dataset_raw/')
+
+    for f in dataset:
+        try:
+            if f.split('.')[1] == 'png' and 'colour' in f:
+                for i in range(4):
+                    image = Image.open(f)
+                    mask = Image.open(f.replace('colour','gt_mask'))
+                    depth = np.load(f.replace('colour','depth').replace('png','npy'))
+
+                    if image.mode != 'RGB':
+                        image = image.convert('RGB')
+                    if mask.mode != 'L':
+                        mask = mask.convert('L')
+
+                    if i == 0:
+                        image = image.transpose(Image.FLIP_LEFT_RIGHT)
+                        mask = mask.transpose(Image.FLIP_LEFT_RIGHT)
+                    elif i == 1:
+                        image = image.transpose(Image.FLIP_TOP_BOTTOM)
+                        mask = mask.transpose(Image.FLIP_TOP_BOTTOM)
+                    elif i == 2:
+                        enhancer = ImageEnhance.Contrast(image)
+                        if random.random() < 0.5:
+                            image = enhancer.enhance(1-random.randint(0,50)/100)
+                        else:
+                            image_cropped = enhancer.enhance(1+random.randint(0,50)/100)
+                    elif i == 3:
+                        enhancer = ImageEnhance.Brightness(image)
+                        if random.random() < 0.5:
+                            image = enhancer.enhance(1-random.randint(0,50)/100)
+                        else:
+                            image = enhancer.enhance(1+random.randint(0,50)/100)
+
+                    save_path = f.replace('dataset_raw','dataset').split('.')
+                    save_path = f'{save_path[0]}_{count}.{save_path[1]}'
+                    image.save(save_path)
+                    mask.save(save_path.replace('colour','gt_mask'))
+                    np.save(save_path.replace('colour','depth').replace('png','npy'),depth)
+                    count += 1
         except FileNotFoundError:
             pass

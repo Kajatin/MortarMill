@@ -4,7 +4,7 @@
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>45f23774-c5ff-4a05-8343-b74806015a3d</ProjectGuid>
     <ProjectHome>.</ProjectHome>
-    <StartupFile>ml\classifier.py</StartupFile>
+    <StartupFile>main.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -29,6 +29,12 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="confighandler.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\classifier_results.py">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Include="junk\colouranddepth.py">
       <SubType>Code</SubType>
     </Compile>
     <Compile Include="junk\comparison_scikit.py">

@@ -11,11 +11,13 @@ ch = ConfigHandler('config.ini')
 if not os.path.isdir('logs/'):
     os.makedirs('logs/')
 date = datetime.datetime.now().strftime("%d%m%Y%H%M%S")
-logging.basicConfig(filename=f'logs/{date}.log',
-                    level=ch.getLogLevel(),
-                    filemode='w',
+logging.basicConfig(level=ch.getLogLevel(),
                     format='%(asctime)s.%(msecs)05d,%(levelname)s,%(pathname)s,%(lineno)d,%(module)s,%(message)s',
-                    datefmt='%Y-%m-%d %H:%M:%S')
+                    datefmt='%Y-%m-%d %H:%M:%S',
+                    handlers=[
+                        logging.FileHandler(f'logs/{date}.log'),
+                        logging.StreamHandler()
+                        ])
 logger = logging.getLogger(__name__)
 
 import cv2 as cv
@@ -23,6 +25,7 @@ import numpy as np
 import pyrealsense2 as rs
 
 import vision
+import ml
 from segmenter import Segmenter
 
 
@@ -31,22 +34,21 @@ if __name__ == '__main__':
     devices = rs.context().devices
     logger.info('Found {} device(s).'.format(devices.size()))
     
-    segmenter = Segmenter(ch.config['PATHFINDER'])
+    segmenter = Segmenter(ch.config['SEGMENTER'])
 
     # if no device is connected, use an image input instead for now
     if devices.size() <= 0:
-        i = 5
-        image = cv.imread(f'samples/RAW/brick_zoom_{i}.jpg')
-        image = cv.resize(image, (848, 480))
+        i=10
+        image = cv.imread(f'samples/eval/colour_{i}.png')
+        depth = np.load(f'samples/eval/depth_{i}.npy')
+        frames = {'colour':image,'depth':depth}
 
-        frames = {'colour':image,'depth':np.zeros(image.shape[:2])}
+        ret = vision.imgproc.calibrateHsvThresholds(frames['colour'],False)
+        segmenter.lowerb, segmenter.upperb = ret
 
-        #ret = vision.imgproc.calibrateHsvThresholds(frames['colour'],False)
-        #print(ret)
-        #segmenter.lowerb, segmenter.upperb = ret
+        mask = segmenter(frames)
 
-        segmenter(frames)
-
+        vision.imgproc.visualizeFinalSegmentation(frames['colour'],mask)
         cv.waitKey(0)
         exit(0)
 
@@ -67,17 +69,10 @@ if __name__ == '__main__':
         camera.showFrames()
 
         # process the frames and show the final mask
-        segmenter(frames)
+        #mask = segmenter(frames)
 
+        #vision.imgproc.visualizeFinalSegmentation(frames['colour'],mask)
         key = cv.waitKey(1)
         if key == 27:
             camera.stopStreaming()
             break
-        elif key == ord('s'):
-            segmenter(frames)
-        elif key == ord('c'):
-            ret = vision.imgproc.calibrateHsvThresholds(frames['colour'],False)
-            print(ret)
-            segmenter.lowerb, segmenter.upperb = ret
-        elif key == ord('i'):
-            cv.imwrite('image.png',frames['colour'])

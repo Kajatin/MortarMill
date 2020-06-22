@@ -20,6 +20,29 @@ from dataset import BrickDataset
 logger = logging.getLogger(__name__)
 
 
+def dice_loss(pred, target, smooth = 1.):
+    pred = pred.contiguous()
+    target = target.contiguous()    
+
+    intersection = (pred * target).sum(dim=2).sum(dim=2)
+    
+    loss = (1 - ((2. * intersection + smooth) / (pred.sum(dim=2).sum(dim=2) + target.sum(dim=2).sum(dim=2) + smooth)))
+    
+    # return loss.mean()
+    return loss.sum()
+
+
+def calc_loss(pred, target, bce_weight=0.5):
+    bce = F.binary_cross_entropy_with_logits(pred, target, reduction='sum')
+        
+    pred = torch.sigmoid(pred)
+    dice = dice_loss(pred, target)
+    
+    loss = bce * bce_weight + dice * (1 - bce_weight)
+    
+    return loss
+
+
 def train_model(epoch):
     # set the model to training mode
     model.train()
@@ -36,12 +59,13 @@ def train_model(epoch):
             # run data through model
             predicted_mask = model(image)
             # evaluate loss
-            loss = criterion(predicted_mask, mask)
+            loss = calc_loss(predicted_mask, mask, 0.5)
+            # loss = criterion(predicted_mask, mask)
             training_loss += loss.item()
             # calculate gradients
             loss.backward()
             # clip gradients to avoid exploding problem
-            nn.utils.clip_grad_value_(model.parameters(), 1)
+            nn.utils.clip_grad_value_(model.parameters(), 0.1)
             # update parameters
             optimizer.step()
 
@@ -82,7 +106,8 @@ def validate_model(epoch):
                 # run data through model
                 predicted_mask = model(image)
                 # evaluate loss
-                loss = criterion(predicted_mask, mask)
+                loss = calc_loss(predicted_mask, mask, 0.5)
+                # loss = criterion(predicted_mask, mask)
                 validation_loss += loss.item()
                 
                 pbar.set_postfix(**{'average loss': validation_loss/(batch_idx+1)})
@@ -107,7 +132,8 @@ def test_model(epoch):
                 # run data through model
                 predicted_mask = model(image)
                 # evaluate loss
-                loss = criterion(predicted_mask, mask)
+                loss = calc_loss(predicted_mask, mask, 0.5)
+                # loss = criterion(predicted_mask, mask)
                 test_loss += loss.item()
                 
                 pbar.set_postfix(**{'average loss': test_loss/(batch_idx+1)})
@@ -123,11 +149,11 @@ def get_args():
                         help='Number of epochs', dest='epochs')
     parser.add_argument('-b', '--batch-size', metavar='B', type=int, nargs='?', default=1,
                         help='Batch size', dest='batchsize')
-    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.001,
+    parser.add_argument('-l', '--learning-rate', metavar='LR', type=float, nargs='?', default=0.005,
                         help='Learning rate', dest='lr')
     parser.add_argument('-f', '--load', dest='load', type=str, default=False,
                         help='Load model from a .pth file')
-    parser.add_argument('-s', '--scale', dest='scale', type=float, default=0.5,
+    parser.add_argument('-s', '--scale', dest='scale', type=float, default=1,
                         help='Downscaling factor of the images')
 
     return parser.parse_args()
@@ -140,8 +166,9 @@ if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     model = UNet().to(device)
     # optimizer = optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-8)
-    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.99)
-    criterion = nn.BCEWithLogitsLoss(reduction='sum')
+    optimizer = optim.SGD(model.parameters(), lr=args.lr, momentum=0.9,weight_decay=1e-8)
+    scheduler = optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.95)
+    criterion = nn.BCEWithLogitsLoss(reduction='sum',pos_weight=torch.FloatTensor([.35]).to(device))
     logger.info(f'Network:\n'
                  f'\t{model.n_channels} input channels\n'
                  f'\t{model.n_classes} output channels (classes)\n'
@@ -175,7 +202,7 @@ if __name__ == '__main__':
         logger.info(f'''Starting training:
             Epochs:          {args.epochs}
             Batch size:      {args.batchsize}
-            Learning rate:   {args.lr}
+            Learning rate:   {optimizer.param_groups[0]['lr']}
             Training size:   {len(train_loader)}
             Validation size: {len(validation_loader)}
             Test size:       {len(test_loader)}
@@ -193,6 +220,7 @@ if __name__ == '__main__':
         test_model(epoch)
 
         plt.plot(train_losses)
+        plt.show()
         plt.plot(validation_losses)
         plt.show()
 
@@ -206,3 +234,8 @@ if __name__ == '__main__':
             'average_loss': 0
             }, save_path)
         logger.info('Saved interrupt')
+
+        plt.plot(train_losses)
+        plt.show()
+        plt.plot(validation_losses)
+        plt.show()
